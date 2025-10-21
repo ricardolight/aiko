@@ -2,21 +2,17 @@
 import { checkConnection } from '@/lib/carv';
 import { getWelcomeMessage } from '@/lib/ai';
 import ConnectWallet from '@/components/ConnectWallet';
+import SystemStatus from '@/components/SystemStatus'; // NEW COMPONENT
 
 export default async function Home() {
-  // Test CARV connection
   const carvConnected = await checkConnection();
-  
-  // Get AIKO welcome message
   const welcomeMessage = getWelcomeMessage();
-  
-  // Check if DeepSeek key is configured
   const hasApiKey = !!process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY;
   
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-900 via-purple-900/20 to-gray-900">
       <div className="container mx-auto px-4 py-16">
-        {/* Hero Section */}
+        {/* Hero */}
         <div className="text-center mb-12">
           <h1 className="text-6xl md:text-8xl font-bold mb-6">
             <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
@@ -38,32 +34,11 @@ export default async function Home() {
         
         {/* Status Cards */}
         <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6 mb-12">
-          {/* System Status */}
-          <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-xl p-6">
-            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <span>⚙️</span> System Status
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">CARV SVM</span>
-                <span className={carvConnected ? 'text-green-400' : 'text-red-400'}>
-                  {carvConnected ? '✅ Connected' : '❌ Disconnected'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">DeepSeek AI</span>
-                <span className={hasApiKey ? 'text-green-400' : 'text-red-400'}>
-                  {hasApiKey ? '✅ Ready' : '❌ Not Configured'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400">Backpack Wallet</span>
-                <span className="text-blue-400">
-                  {typeof window !== 'undefined' && (window as any).backpack ? '✅ Installed' : '⏳ Checking...'}
-                </span>
-              </div>
-            </div>
-          </div>
+          {/* System Status - NEW CLIENT COMPONENT */}
+          <SystemStatus 
+            carvConnected={carvConnected}
+            hasApiKey={hasApiKey}
+          />
           
           {/* Features */}
           <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-xl p-6">
