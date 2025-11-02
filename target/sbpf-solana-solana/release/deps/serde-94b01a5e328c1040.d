@@ -1,0 +1,14 @@
+/mnt/c/Users/Irhash/Projects/aiko/target/sbpf-solana-solana/release/deps/libserde-94b01a5e328c1040.rmeta: /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs /mnt/c/Users/Irhash/Projects/aiko/target/sbpf-solana-solana/release/build/serde-288fe0faa4c06488/out/private.rs
+
+/mnt/c/Users/Irhash/Projects/aiko/target/sbpf-solana-solana/release/deps/libserde-94b01a5e328c1040.rlib: /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs /mnt/c/Users/Irhash/Projects/aiko/target/sbpf-solana-solana/release/build/serde-288fe0faa4c06488/out/private.rs
+
+/mnt/c/Users/Irhash/Projects/aiko/target/sbpf-solana-solana/release/deps/serde-94b01a5e328c1040.d: /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs /home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs /mnt/c/Users/Irhash/Projects/aiko/target/sbpf-solana-solana/release/build/serde-288fe0faa4c06488/out/private.rs
+
+/home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/lib.rs:
+/home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/integer128.rs:
+/home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/mod.rs:
+/home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/de.rs:
+/home/miyano/.cargo/registry/src/index.crates.io-6f17d22bba15001f/serde-1.0.228/src/private/ser.rs:
+/mnt/c/Users/Irhash/Projects/aiko/target/sbpf-solana-solana/release/build/serde-288fe0faa4c06488/out/private.rs:
+
+# env-dep:OUT_DIR=/mnt/c/Users/Irhash/Projects/aiko/target/sbpf-solana-solana/release/build/serde-288fe0faa4c06488/out
