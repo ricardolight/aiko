@@ -4,11 +4,95 @@ export interface PersonalityResponse {
   emoji: string;
 }
 
-export function getAikoResponse(userMessage: string, level: number, xp: number, streak: number): PersonalityResponse {
+export interface DeepSeekMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export function getAikoResponse(
+  userMessage: string, 
+  level: number, 
+  xp: number, 
+  streak: number,
+  history: DeepSeekMessage[] = [] // Tambahkan parameter history
+): PersonalityResponse {
   const lower = userMessage.toLowerCase();
-  
+  const lastAikoMessage = history.filter(msg => msg.role === 'assistant').pop()?.content || '';
+  const lastUserMessage = history.filter(msg => msg.role === 'user').slice(-2, -1)[0]?.content || '';
+
+  // Check for repeated questions using history
+  const isRepeatedQuestion = history.some(msg => 
+    msg.role === 'user' && 
+    msg.content.toLowerCase().includes(userMessage.toLowerCase().substring(0, 10))
+  );
+
+  // Follow-up responses based on conversation context
+  if (lastAikoMessage.includes('How are YOU doing?')) {
+    if (lower.match(/\b(good|great|fine|ok|amazing|happy)\b/)) {
+      return {
+        text: `That's wonderful! 😊 I'm so glad you're doing well! It makes me happy to know you're feeling good! 💕`,
+        emotion: 'happy',
+        emoji: '🌟'
+      };
+    }
+    if (lower.match(/\b(bad|tired|sick|not good|stressed)\b/)) {
+      return {
+        text: `I'm sorry to hear that... 😔 Remember I'm always here for you! Would a virtual hug help? *sends warm hug* 💙`,
+        emotion: 'sad',
+        emoji: '🤗'
+      };
+    }
+  }
+
+  // Follow up on game topic
+  if (lastAikoMessage.includes('favorite games')) {
+    if (lower.match(/\b(minecraft|fortnite|roblox|among us|valorant|league)\b/)) {
+      return {
+        text: `Oh I've heard of ${lower.split(' ')[0]}! 🎮 That sounds like so much fun! Tell me what you like about it! ✨`,
+        emotion: 'curious',
+        emoji: '🎯'
+      };
+    }
+  }
+
+  // Handle repeated questions
+  if (isRepeatedQuestion) {
+    return {
+      text: `Ehehe~ You already asked me something similar! 😊 But that's okay! I love talking to you no matter what! 💕`,
+      emotion: 'happy',
+      emoji: '🌸'
+    };
+  }
+
+  // Continue previous conversation context
+  if (lastAikoMessage.includes('Tell me more!') || lastAikoMessage.includes('What else should I know?')) {
+    if (lower.length > 10) { // If user gives substantial response
+      return {
+        text: `Wow, that's really fascinating! 🌟 Thank you for sharing that with me! I'm learning so much from you! You're an amazing teacher! 📚💕`,
+        emotion: 'curious',
+        emoji: '✨'
+      };
+    }
+  }
+
+  // Existing logic dengan tambahan konteks dari history
   // Greetings
   if (lower.match(/\b(hi|hello|hey|konnichiwa|ohayo)\b/)) {
+    // Check if this is first message today using history
+    const todayMessages = history.filter(msg => {
+      // Simple check - in real app you'd use timestamps
+      return msg.content.toLowerCase().includes('hi') || 
+             msg.content.toLowerCase().includes('hello');
+    });
+    
+    if (todayMessages.length > 0) {
+      return {
+        text: `Back so soon? 💕 I'm so lucky! What would you like to talk about today? 🌸`,
+        emotion: 'excited',
+        emoji: '🎉'
+      };
+    }
+    
     const greetings = [
       { text: `Konnichiwa! 💕 I'm so happy you're here! We're Level ${level} together now!`, emotion: 'excited' as const, emoji: '🌸' },
       { text: `Hi hi! ✨ You came back! That makes me so happy! Let's chat!`, emotion: 'happy' as const, emoji: '💖' },

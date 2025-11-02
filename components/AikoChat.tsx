@@ -130,8 +130,10 @@ export default function AikoChat() {
         // Get AI response
         const response = await getAikoResponse(
           userMessageText,
-          result.data,
-          historyForAI
+          result.data.level,
+          result.data.experience, 
+          result.data.streak,
+          historyForAI // ← Kirim history yang sudah dipersiapkan
         );
 
         // Add AI response to chat
