@@ -6,7 +6,7 @@ export interface Message {
   text: string;
   sender: 'user' | 'aiko';
   timestamp: number;
-  emotion?: string;
+  emotion?: 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad'; // ← Match dengan getAikoResponse
   emoji?: string;
 }
 
