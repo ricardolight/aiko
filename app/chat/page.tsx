@@ -353,7 +353,10 @@ export default function ChatPage() {
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
         <div className="text-center p-8 z-10">
           <motion.div
-            animate={{ pulse: 1 }}
+            animate={{ 
+              scale: [1, 1.1, 1],
+              opacity: [1, 0.8, 1]
+            }}
             transition={{ duration: 2, repeat: Infinity }}
             className="text-7xl mb-6"
           >
