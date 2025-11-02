@@ -13,7 +13,7 @@ interface Message {
   text: string;
   sender: 'user' | 'aiko';
   timestamp: number;
-  emotion?: 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad';
+  emotion?: 'happy' | 'ex cited' | 'love' | 'curious' | 'proud' | 'sad';
   emoji?: string;
 }
 
