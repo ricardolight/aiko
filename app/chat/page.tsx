@@ -174,7 +174,7 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // PERBAIKAN: handleSend function
+  // PERBAIKAN: handleSend function - fix type mismatch dengan AIKOData yang benar
   const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
@@ -213,20 +213,25 @@ export default function ChatPage() {
         }
         setAikoData(updatedAiko);
 
-        // Prepare data untuk AI
+        // Prepare data untuk AI - PERBAIKAN: Sesuaikan dengan AIKOData interface
         const historyForAI: DeepSeekMessage[] = messages.slice(-10).map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text
         }));
 
+        // PERBAIKAN: Convert data blockchain ke format AIKOData yang diharapkan
         const aikoDataForAI = {
-          ...updatedAiko,
+          owner: updatedAiko.owner.toBase58(), // Convert PublicKey to string
           level: updatedAiko.level,
           xp: Number(updatedAiko.xp.toString()),
           total_interactions: Number(updatedAiko.totalInteractions.toString()),
+          last_interaction: Math.floor(Number(updatedAiko.lastInteraction.toString()) / 1000), // Convert to seconds
           streak: Number(updatedAiko.streak.toString()),
-          evolution_stage: getEvolutionStage(updatedAiko.level),
+          birthday: Math.floor(Date.now() / 1000), // Default timestamp untuk sekarang
+          evolution_stage: getEvolutionStage(updatedAiko.level) as 'egg' | 'hatchling' | 'companion' | 'soulmate'
         };
+
+        console.log("Sending to DeepSeek:", aikoDataForAI);
 
         // Get AI response
         const response = await deepseekService.chat(
