@@ -35,7 +35,7 @@ export default function TestPage() {
     try {
       const welcome = getWelcomeMessage();
       setAiStatus(`✅ AI Ready! Preview:\n\n${welcome}`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setAiStatus(`❌ ERROR: ${error.message}`);
     }
   }
@@ -47,7 +47,7 @@ export default function TestPage() {
         { role: 'user', content: 'Hello AIKO! This is a test message.' }
       ]);
       setChatResponse(`✅ Response:\n\n${response}`);
-    } catch (error: unknown) {
+    } catch (error: any) {
       setChatResponse(`❌ ERROR: ${error.message}`);
     }
     setLoading(false);
