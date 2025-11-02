@@ -72,13 +72,13 @@ export default function AikoChat() {
     }
   };
 
-  const addAikoMessage = (text: string, emotion?: string, emoji?: string) => {
-    const newMessage = {
+  const addAikoMessage = (text: string, emotion?: 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad', emoji?: string) => {
+    const newMessage: Message = {
       id: `${Date.now()}-${Math.random()}_aiko`,
       text,
-      sender: 'aiko' as const,
+      sender: 'aiko',
       timestamp: Date.now(),
-      emotion,
+      emotion,  
       emoji
     };
     addMessage(newMessage);
