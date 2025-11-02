@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { checkConnection, connection } from '@/lib/carv';
 import { chatWithAIKO, getWelcomeMessage } from '@/lib/ai';
+import Link from 'next/link';
 
 export default function TestPage() {
   const [carvStatus, setCarvStatus] = useState<string>('Testing...');
@@ -34,7 +35,7 @@ export default function TestPage() {
     try {
       const welcome = getWelcomeMessage();
       setAiStatus(`✅ AI Ready! Preview:\n\n${welcome}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setAiStatus(`❌ ERROR: ${error.message}`);
     }
   }
@@ -46,7 +47,7 @@ export default function TestPage() {
         { role: 'user', content: 'Hello AIKO! This is a test message.' }
       ]);
       setChatResponse(`✅ Response:\n\n${response}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       setChatResponse(`❌ ERROR: ${error.message}`);
     }
     setLoading(false);
@@ -100,12 +101,12 @@ export default function TestPage() {
         
         {/* Back Link */}
         <div className="text-center">
-          <a 
+          <Link 
             href="/"
             className="text-purple-400 hover:text-purple-300 underline"
           >
             ← Back to Home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

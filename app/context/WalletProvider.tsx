@@ -194,17 +194,17 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const value = useMemo((): WalletContextState => ({
-    publicKey,
-    address: publicKey ? publicKey.toBase58() : null,
-    balance,
-    isConnected: !!publicKey,
-    provider,
-    connectWallet,
-    disconnectWallet,
-    signTransaction,
-    signAllTransactions,
-  }), [publicKey, balance, provider, signTransaction, signAllTransactions]);
+const value = useMemo((): WalletContextState => ({
+  publicKey,
+  address: publicKey ? publicKey.toBase58() : null,
+  balance,
+  isConnected: !!publicKey,
+  provider,
+  connectWallet,
+  disconnectWallet,
+  signTransaction,
+  signAllTransactions,
+}), [publicKey, balance, provider, signTransaction, signAllTransactions, connectWallet, disconnectWallet]);
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 };
