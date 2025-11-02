@@ -4,25 +4,23 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { solanaService, AIKOData } from '@/lib/solana-mock';
 import { getAikoResponse } from '@/lib/aiko-personality';
+import { useChatHistory } from '@/app/hooks/useChatHistory'; // Import hook
 import AikoAvatar from './AikoAvatar';
 import StatsCard from './StatsCard';
 import MessageBubble from './MessageBubble';
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'aiko';
-  timestamp: number;
-  emotion?: 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad';
-  emoji?: string;
-}
+// Hapus interface Message yang duplicate, karena sudah ada di hook
+// atau jika perlu reference, import juga:
+// import { type Message } from '@/app/hooks/useChatHistory';
 
 export default function AikoChat() {
-  const [messages, addMessage] = useChatHistory('aiko-main');
+  // Gunakan walletAddress sebagai suffix untuk storage key
+  const [walletAddress] = useState(() => solanaService.getMockWallet());
+  const [messages, addMessage] = useChatHistory(walletAddress); // Pass wallet address sebagai suffix
+  
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [aikoData, setAikoData] = useState<AIKOData | null>(null);
-  const [walletAddress] = useState(() => solanaService.getMockWallet());
   const [showStats, setShowStats] = useState(true);
   const [notification, setNotification] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -55,7 +53,6 @@ export default function AikoChat() {
         if (data) {
           setAikoData(data);
 
-          
           if (messages.length === 0) {
             const daysSince = Math.floor((Date.now() - data.birthday) / (1000 * 60 * 60 * 24));
             const welcomeBack = [
@@ -75,27 +72,27 @@ export default function AikoChat() {
     }
   };
 
-  const addAikoMessage = (text: string, emotion?: Message['emotion'], emoji?: string) => {
-    const newMessage: Message = {
-      id: `${Date.now()}-${Math.random()}_aiko`, // ID lebih unik
+  const addAikoMessage = (text: string, emotion?: string, emoji?: string) => {
+    const newMessage = {
+      id: `${Date.now()}-${Math.random()}_aiko`,
       text,
-      sender: 'aiko',
+      sender: 'aiko' as const,
       timestamp: Date.now(),
       emotion,
       emoji
     };
-    addMessage(newMessage); // Gunakan fungsi dari hook
+    addMessage(newMessage);
   };
 
   const addUserMessage = (text: string) => {
-      const newMessage: Message = {
-        id: `${Date.now()}-${Math.random()}_user`, // ID lebih unik
-        text,
-        sender: 'user',
-        timestamp: Date.now()
-      };
-      addMessage(newMessage); // Gunakan fungsi dari hook
+    const newMessage = {
+      id: `${Date.now()}-${Math.random()}_user`,
+      text,
+      sender: 'user' as const,
+      timestamp: Date.now()
     };
+    addMessage(newMessage);
+  };
 
   const showNotification = (text: string) => {
     setNotification(text);
@@ -105,10 +102,10 @@ export default function AikoChat() {
   const handleSend = async () => {
     if (!input.trim() || loading || !aikoData) return;
 
-      const userMessageText = input.trim();
-        setInput('');
-        addUserMessage(userMessageText); // This adds the new message to your persistent history
-        setLoading(true);
+    const userMessageText = input.trim();
+    setInput('');
+    addUserMessage(userMessageText);
+    setLoading(true);
 
     try {
       // Record interaction
@@ -124,21 +121,21 @@ export default function AikoChat() {
           showNotification(result.message!);
         }
         
-        // 1. Siapkan histori chat untuk dikirim ke AI
+        // Prepare chat history for AI
         const historyForAI = messages.map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
+          role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
           content: msg.text,
         }));
 
-        // 2. Panggil DeepSeek dengan histori tersebut
-        const response = await deepseekService.chat(
-          userMessage,      // Pesan baru dari user
-          result.data,      // Data AIKO (untuk kepribadian)
-          historyForAI      // Histori chat (untuk memori)
+        // Get AI response
+        const response = await getAikoResponse(
+          userMessageText,
+          result.data,
+          historyForAI
         );
 
-        // 3. Tambahkan respons dari AI asli ke chat
-        addAikoMessage(response.text, response.emotion as any, response.emoji);
+        // Add AI response to chat
+        addAikoMessage(response.text, response.emotion, response.emoji);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
