@@ -73,7 +73,9 @@ export default function WalletButton() {
                 
                 <div className="border-b border-white/10 pb-3">
                   <div className="text-gray-400 text-xs mb-1">Balance</div>
-                  <div className="text-white font-bold">{balance.toFixed(4)} SOL</div>
+                  <div className="text-white font-bold">
+                    {balance?.toFixed(4) ?? '0.0000'} SOL 
+                  </div>
                 </div>
 
                 <button
