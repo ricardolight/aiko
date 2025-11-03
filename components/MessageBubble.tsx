@@ -25,7 +25,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
       y: 0, 
       scale: 1,
       transition: { 
-        type: 'spring',
+        type: 'spring' as const, // ← Tambahkan 'as const'
         stiffness: 300,
         damping: 20
       }
