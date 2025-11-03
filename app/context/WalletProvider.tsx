@@ -5,7 +5,7 @@ import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 const RPC_URL = 'https://rpc.testnet.carv.io/rpc';
 
-interface WalletContextState {
+export interface WalletContextState {
   publicKey: PublicKey | null;
   address: string | null;
   balance: number | null;
