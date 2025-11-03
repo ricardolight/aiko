@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { solanaService, AIKOData } from '@/lib/solana-mock';
 import { getAikoResponse } from '@/lib/aiko-personality';
-import { useChatHistory } from '@/app/hooks/useChatHistory'; // Import hook
+import { useChatHistory, type Message } from '@/app/hooks/useChatHistory';  // Import hook
 import AikoAvatar from './AikoAvatar';
 import StatsCard from './StatsCard';
 import MessageBubble from './MessageBubble';
