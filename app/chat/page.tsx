@@ -147,13 +147,17 @@ export default function ChatPage() {
     }
   };
 
-  const addAikoMessage = (text: string, emotion?: string, emoji?: string) => {
+  const addAikoMessage = (
+    text: string, 
+    emotion?: 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad', 
+    emoji?: string
+  ) => {
     const newMessage: Message = {
       id: `${Date.now()}-${Math.random()}_aiko`,
       text,
       sender: 'aiko',
       timestamp: Date.now(),
-      emotion,
+      emotion, // ← Sekarang type match
       emoji
     };
     addMessage(newMessage);
@@ -240,7 +244,11 @@ export default function ChatPage() {
           historyForAI 
         );
         
-        addAikoMessage(response.text, response.emotion, response.emoji);
+        addAikoMessage(
+          response.text, 
+          response.emotion as 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad', // ← Type assertion
+          response.emoji
+        );
       }
     } catch (error: any) {
       console.error('Failed to send message:', error);
