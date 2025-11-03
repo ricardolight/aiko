@@ -72,18 +72,18 @@ export default function AikoChat() {
     }
   };
 
-  const addAikoMessage = (text: string, emotion?: 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad', emoji?: string) => {
+  const addAikoMessage = (text: string, emotion?: string, emoji?: string) => {
     const newMessage: Message = {
       id: `${Date.now()}-${Math.random()}_aiko`,
       text,
       sender: 'aiko',
       timestamp: Date.now(),
-      emotion,  
+      emotion: emotion as 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad' | undefined, // ← Type assertion
       emoji
     };
     addMessage(newMessage);
   };
-
+  
   const addUserMessage = (text: string) => {
     const newMessage = {
       id: `${Date.now()}-${Math.random()}_user`,
