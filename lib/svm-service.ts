@@ -4,17 +4,27 @@ import {
   Transaction,
   TransactionInstruction,
   SystemProgram,
-  SYSVAR_RENT_PUBKEY,
 } from '@solana/web3.js';
 import { WalletContextState } from '@/app/context/WalletProvider';
 import BN from 'bn.js';
+import { sha256 } from 'js-sha256';
 
 const RPC_URL = 'https://rpc.testnet.carv.io/rpc';
 const PROGRAM_ID = new PublicKey('ApwsuCKnbuhZYgWqok3Sx3umk15P1RR3MdEawwvN26pi');
 
-// Instruction discriminators berdasarkan IDL
-const INITIALIZE_DISCRIMINATOR = Buffer.from([175, 10, 28, 245, 188, 255, 234, 3]); // initialize
-const INTERACT_DISCRIMINATOR = Buffer.from([251, 62, 39, 71, 40, 210, 150, 171]);   // interact
+// Function untuk generate instruction discriminator dari instruction name
+function getInstructionDiscriminator(instructionName: string): Buffer {
+  const namespace = 'global';
+  const preimage = `${namespace}:${instructionName}`;
+  const hash = sha256.digest(preimage);
+  return Buffer.from(hash.slice(0, 8));
+}
+
+const INITIALIZE_DISCRIMINATOR = getInstructionDiscriminator('initialize');
+const INTERACT_DISCRIMINATOR = getInstructionDiscriminator('interact');
+
+console.log('🔑 Initialize Discriminator:', Array.from(INITIALIZE_DISCRIMINATOR));
+console.log('🔑 Interact Discriminator:', Array.from(INTERACT_DISCRIMINATOR));
 
 export interface AikoAccount {
   owner: PublicKey;
@@ -116,6 +126,7 @@ class SvmService {
       
       const [aikoPda, bump] = this.getAikoPda(wallet.publicKey);
       console.log('📍 PDA:', aikoPda.toBase58(), 'Bump:', bump);
+      console.log('🔑 Using discriminator:', Array.from(INITIALIZE_DISCRIMINATOR));
 
       // Check if already exists
       const existing = await this.connection.getAccountInfo(aikoPda);
@@ -123,15 +134,15 @@ class SvmService {
         throw new Error('AIKO already initialized');
       }
 
-      // Instruction untuk initialize - SESUAI IDL
+      // Instruction untuk initialize
       const instruction = new TransactionInstruction({
         keys: [
-          { pubkey: aikoPda, isSigner: false, isWritable: true },      // aiko account
-          { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // user account
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // systemProgram
+          { pubkey: aikoPda, isSigner: false, isWritable: true },
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         ],
         programId: PROGRAM_ID,
-        data: INITIALIZE_DISCRIMINATOR, // ← Gunakan discriminator yang benar
+        data: INITIALIZE_DISCRIMINATOR,
       });
 
       const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
@@ -141,6 +152,15 @@ class SvmService {
         blockhash,
         lastValidBlockHeight,
       }).add(instruction);
+
+      // Test simulation dulu
+      console.log('🧪 Simulating transaction...');
+      const simulation = await this.connection.simulateTransaction(transaction);
+      console.log('Simulation result:', simulation);
+      
+      if (simulation.value.err) {
+        throw new Error(`Simulation failed: ${JSON.stringify(simulation.value.err)}`);
+      }
 
       console.log('📝 Signing...');
       const signed = await wallet.signTransaction(transaction);
@@ -171,7 +191,6 @@ class SvmService {
     } catch (error: any) {
       console.error('❌ Initialize failed:', error);
       
-      // Parse error logs if available
       if (error.logs) {
         console.error('Program logs:', error.logs);
       }
@@ -189,6 +208,7 @@ class SvmService {
       console.log('💬 Recording interaction...');
       
       const [aikoPda] = this.getAikoPda(wallet.publicKey);
+      console.log('🔑 Using discriminator:', Array.from(INTERACT_DISCRIMINATOR));
 
       // Check account exists
       const accountInfo = await this.connection.getAccountInfo(aikoPda);
@@ -196,15 +216,15 @@ class SvmService {
         throw new Error('AIKO not initialized. Please initialize first.');
       }
 
-      // Instruction untuk interact - SESUAI IDL
+      // Instruction untuk interact
       const instruction = new TransactionInstruction({
         keys: [
-          { pubkey: aikoPda, isSigner: false, isWritable: true },           // aiko account
-          { pubkey: wallet.publicKey, isSigner: false, isWritable: false }, // owner account
-          { pubkey: wallet.publicKey, isSigner: true, isWritable: false },  // user account (signer)
+          { pubkey: aikoPda, isSigner: false, isWritable: true },
+          { pubkey: wallet.publicKey, isSigner: false, isWritable: false },
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
         ],
         programId: PROGRAM_ID,
-        data: INTERACT_DISCRIMINATOR, // ← Gunakan discriminator yang benar
+        data: INTERACT_DISCRIMINATOR,
       });
 
       const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
@@ -246,10 +266,6 @@ class SvmService {
       
       if (error.logs) {
         console.error('Program logs:', error.logs);
-      }
-      
-      if (error.message?.includes('0x1770')) {
-        throw new Error('Unauthorized: Not the owner');
       }
       
       throw new Error(`Interact failed: ${error.message}`);
