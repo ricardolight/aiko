@@ -10,7 +10,11 @@ import { WalletContextState } from '@/app/context/WalletProvider';
 import BN from 'bn.js';
 
 const RPC_URL = 'https://rpc.testnet.carv.io/rpc';
-const PROGRAM_ID = new PublicKey('ApwsuCKnbuhZYgWqok3SXumk1SPiRR3MdEaumvwV26pi');
+const PROGRAM_ID = new PublicKey('ApwsuCKnbuhZYgWqok3Sx3umk15P1RR3MdEawwvN26pi');
+
+// Instruction discriminators berdasarkan IDL
+const INITIALIZE_DISCRIMINATOR = Buffer.from([175, 10, 28, 245, 188, 255, 234, 3]); // initialize
+const INTERACT_DISCRIMINATOR = Buffer.from([251, 62, 39, 71, 40, 210, 150, 171]);   // interact
 
 export interface AikoAccount {
   owner: PublicKey;
@@ -119,17 +123,15 @@ class SvmService {
         throw new Error('AIKO already initialized');
       }
 
-      // Instruction discriminator for "initialize"
-      const discriminator = Buffer.from([175, 175, 109, 31, 13, 152, 155, 237]);
-
+      // Instruction untuk initialize - SESUAI IDL
       const instruction = new TransactionInstruction({
         keys: [
-          { pubkey: aikoPda, isSigner: false, isWritable: true },
-          { pubkey: wallet.publicKey, isSigner: true, isWritable: true },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          { pubkey: aikoPda, isSigner: false, isWritable: true },      // aiko account
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: true }, // user account
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // systemProgram
         ],
         programId: PROGRAM_ID,
-        data: discriminator,
+        data: INITIALIZE_DISCRIMINATOR, // ← Gunakan discriminator yang benar
       });
 
       const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
@@ -194,17 +196,15 @@ class SvmService {
         throw new Error('AIKO not initialized. Please initialize first.');
       }
 
-      // Instruction discriminator for "interact"
-      const discriminator = Buffer.from([167, 179, 107, 111, 241, 26, 174, 213]);
-
+      // Instruction untuk interact - SESUAI IDL
       const instruction = new TransactionInstruction({
         keys: [
-          { pubkey: aikoPda, isSigner: false, isWritable: true },
-          { pubkey: wallet.publicKey, isSigner: false, isWritable: false }, // owner
-          { pubkey: wallet.publicKey, isSigner: true, isWritable: false },  // user
+          { pubkey: aikoPda, isSigner: false, isWritable: true },           // aiko account
+          { pubkey: wallet.publicKey, isSigner: false, isWritable: false }, // owner account
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: false },  // user account (signer)
         ],
         programId: PROGRAM_ID,
-        data: discriminator,
+        data: INTERACT_DISCRIMINATOR, // ← Gunakan discriminator yang benar
       });
 
       const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
