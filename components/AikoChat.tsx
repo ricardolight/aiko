@@ -31,7 +31,21 @@ export default function AikoChat() {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll hanya jika user sudah di bottom
+    const isNearBottom = () => {
+      const container = messagesEndRef.current?.parentElement;
+      if (!container) return false;
+      
+      const threshold = 100; // pixels from bottom
+      return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    };
+
+    if (isNearBottom()) {
+      messagesEndRef.current?.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'end'
+      });
+    }
   }, [messages]);
 
   const loadAikoData = async () => {
@@ -72,20 +86,34 @@ export default function AikoChat() {
     }
   };
 
-  const addAikoMessage = (
-    text: string, 
-    emotion?: 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad', 
-    emoji?: string
-  ) => {
-    const newMessage: Message = {
-      id: `${Date.now()}-${Math.random()}_aiko`,
-      text,
-      sender: 'aiko',
-      timestamp: Date.now(),
-      emotion, // ← Sekarang type match
-      emoji
-    };
-    addMessage(newMessage);
+  // Simpan scroll position sebelum update
+  const preserveScrollPosition = (callback: () => void) => {
+    const container = messagesEndRef.current?.parentElement;
+    const scrollTop = container?.scrollTop || 0;
+    
+    callback();
+    
+    // Restore scroll position setelah render
+    setTimeout(() => {
+      if (container) {
+        container.scrollTop = scrollTop;
+      }
+    }, 0);
+  };
+
+  // Gunakan di addMessage
+  const addAikoMessage = (text: string, emotion?: any, emoji?: string) => {
+    preserveScrollPosition(() => {
+      const newMessage: Message = {
+        id: `${Date.now()}-${Math.random()}_aiko`,
+        text,
+        sender: 'aiko',
+        timestamp: Date.now(),
+        emotion,
+        emoji
+      };
+      addMessage(newMessage);
+    });
   };
 
   const addUserMessage = (text: string) => {
@@ -112,40 +140,43 @@ export default function AikoChat() {
     setLoading(true);
 
     try {
-      // Record interaction
-      const result = await solanaService.interact(walletAddress);
-      
-      if (result.success && result.data) {
-        setAikoData(result.data);
+      // 1. DAPATKAN AI RESPONSE DULU (INSTANT UX)
+      const historyForAI = messages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
+        content: msg.text,
+      }));
 
-        // Show special notifications
-        if (result.evolutionUp) {
-          showNotification(result.message!);
-        } else if (result.levelUp) {
-          showNotification(result.message!);
+      const response = await getAikoResponse(
+        userMessageText,
+        aikoData.level,
+        aikoData.xp,        
+        aikoData.streak,
+        historyForAI
+      );
+
+      // 2. TAMPILKAN AI RESPONSE (User lihat hasil dulu)
+      addAikoMessage(response.text, response.emotion, response.emoji);
+
+      // 3. BACKGROUND BLOCKCHAIN SYNC (User bisa lanjut chat)
+      setTimeout(async () => {
+        try {
+          const result = await solanaService.interact(walletAddress);
+          if (result.success && result.data) {
+            setAikoData(result.data);
+            // Show notifications jika ada level up
+            if (result.levelUp || result.evolutionUp) {
+              showNotification(result.message!);
+            }
+          }
+        } catch (error) {
+          console.error('Background sync failed:', error);
+          // Tidak tampilkan error ke user, biar UX smooth
         }
-        
-        // Prepare chat history for AI
-        const historyForAI = messages.map(msg => ({
-          role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
-          content: msg.text,
-        }));
+      }, 1000);
 
-        // Get AI response
-        const response = await getAikoResponse(
-          userMessageText,
-          result.data.level,
-          result.data.xp,        
-          result.data.streak,
-          historyForAI
-        );
-
-        // Add AI response to chat
-        addAikoMessage(response.text, response.emotion, response.emoji);
-      }
     } catch (error) {
       console.error('Failed to send message:', error);
-      addAikoMessage("Oh no! Something went wrong... 😢 But don't worry, I'm still here with you!", 'sad', '💔');
+      addAikoMessage("Oh no! Something went wrong... 😢", 'sad', '💔');
     } finally {
       setLoading(false);
       inputRef.current?.focus();
