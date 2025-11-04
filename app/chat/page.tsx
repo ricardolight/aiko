@@ -46,7 +46,22 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      const container = messagesEndRef.current.parentElement;
+      if (container) {
+        // Scroll hanya jika user sudah dekat bottom
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+        
+        if (isNearBottom) {
+          requestAnimationFrame(() => {
+            messagesEndRef.current?.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'end'
+            });
+          });
+        }
+      }
+    }
   }, [messages]);
 
   // PERBAIKAN: loadAikoData function
