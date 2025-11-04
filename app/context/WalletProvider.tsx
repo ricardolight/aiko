@@ -124,61 +124,68 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     return () => clearTimeout(timer);
   }, [updateBalance]);
 
-  // Setup event listeners
-  useEffect(() => {
+    // Setup event listeners
+    useEffect(() => {
     const backpack = (window as any).backpack;
     if (backpack) {
-      console.log("Setting up wallet event listeners");
-      
-      backpack.on('connect', handleConnect);
-      backpack.on('disconnect', handleDisconnect);
-      backpack.on('accountChanged', (newPublicKey: PublicKey | null) => {
+        console.log("Setting up wallet event listeners");
+        
+        // BUAT DEDICATED HANDLER UNTUK accountChanged
+        const handleAccountChanged = (newPublicKey: PublicKey | null) => {
+        console.log("Account changed:", newPublicKey?.toBase58());
         if (newPublicKey) {
-          setPublicKey(newPublicKey);
-          updateBalance(newPublicKey);
-          
-          // Re-bind signing methods
-          if (backpack.signTransaction) {
+            setPublicKey(newPublicKey);
+            updateBalance(newPublicKey);
+            
+            // Re-bind signing methods
+            if (backpack.signTransaction) {
             setSignTransaction(() => backpack.signTransaction.bind(backpack));
-          }
-          if (backpack.signAllTransactions) {
+            }
+            if (backpack.signAllTransactions) {
             setSignAllTransactions(() => backpack.signAllTransactions.bind(backpack));
-          }
+            }
         } else {
-          handleDisconnect();
+            console.log("Account changed to null - disconnecting");
+            handleDisconnect();
         }
-      });
+        };
 
-      return () => {
+        backpack.on('connect', handleConnect);
+        backpack.on('disconnect', handleDisconnect);
+        backpack.on('accountChanged', handleAccountChanged); // ← PAKAI DEDICATED HANDLER
+
+        return () => {
+        console.log("Cleaning up wallet event listeners");
         backpack.removeListener('connect', handleConnect);
         backpack.removeListener('disconnect', handleDisconnect);
-        backpack.removeListener('accountChanged', handleConnect);
-      };
+        backpack.removeListener('accountChanged', handleAccountChanged); // ← PAKAI FUNCTION YANG SAMA
+        };
     }
-  }, [handleConnect, handleDisconnect, updateBalance]);
+    }, [handleConnect, handleDisconnect, updateBalance]);
 
-  const connectWallet = async () => {
+    const connectWallet = async () => {
     try {
-      console.log("Connecting wallet...");
-      const backpack = (window as any).backpack;
-      
-      if (!backpack) {
+        console.log("Connecting wallet...");
+        const backpack = (window as any).backpack;
+        
+        if (!backpack) {
         alert('Backpack wallet not found! Please install it.');
         window.open('https://backpack.app', '_blank');
         return;
-      }
+        }
 
-      await backpack.connect();
-      
-      // Wait a bit for wallet to fully load
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // handleConnect will be called via event listener
+        // Clear any existing state first
+        handleDisconnect();
+        
+        await backpack.connect();
+        
+        console.log("Wallet connect initiated, waiting for events...");
+        
     } catch (error: any) {
-      console.error("Failed to connect wallet:", error);
-      alert(`Failed to connect wallet: ${error.message}`);
+        console.error("Failed to connect wallet:", error);
+        alert(`Failed to connect wallet: ${error.message}`);
     }
-  };
+    };
 
   const disconnectWallet = async () => {
     try {
