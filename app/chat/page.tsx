@@ -74,8 +74,9 @@ class MemoryService {
     const knowsName = (aikoData.memoryFlags & 1) !== 0;
     const knowsCountry = (aikoData.memoryFlags & 2) !== 0;
     
-    const nameFound = !knowsName && this.extractName(userMessage);
-    const countryFound = !knowsCountry && this.extractCountry(userMessage);
+    // FIX: Properly convert to boolean
+    const nameFound = !knowsName && this.extractName(userMessage).length > 0;
+    const countryFound = !knowsCountry && this.extractCountry(userMessage).length > 0;
     
     return nameFound || countryFound;
   }
@@ -83,11 +84,15 @@ class MemoryService {
   static calculateMemoryFlags(userMessage: string, currentFlags: number): number {
     let flags = currentFlags;
     
-    if (this.extractName(userMessage)) {
+    const name = this.extractName(userMessage);
+    const country = this.extractCountry(userMessage);
+    
+    // FIX: Check length instead of truthiness
+    if (name.length > 0) {
       flags |= 1; // SET KNOWS_NAME bit
     }
     
-    if (this.extractCountry(userMessage)) {
+    if (country.length > 0) {
       flags |= 2; // SET KNOWS_COUNTRY bit  
     }
     
