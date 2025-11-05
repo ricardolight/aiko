@@ -285,7 +285,7 @@ function HomeContent({ walletConnected }: { walletConnected: boolean }) {
               </Link>
 
               <button
-                onClick={() => window.location.href = '#dashboard'}
+                onClick={() => setActiveTab('dashboard')}
                 className="group w-full sm:w-auto glass px-10 py-5 rounded-2xl border-2 border-purple-500/30 hover:border-purple-500/60 transition-all"
               >
                 <span className="text-xl font-semibold text-purple-200 group-hover:text-white transition-colors flex items-center gap-2">
