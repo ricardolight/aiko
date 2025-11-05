@@ -29,6 +29,105 @@ const STORAGE_KEYS = {
 const MAX_MESSAGES = 200;
 const MESSAGE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
+// Clean and validate messages
+const cleanMessages = (messages: any[]): Message[] => {
+  if (!Array.isArray(messages)) return [];
+  
+  return messages
+    .filter(msg => 
+      msg && 
+      typeof msg === 'object' &&
+      typeof msg.id === 'string' &&
+      typeof msg.text === 'string' &&
+      (msg.sender === 'user' || msg.sender === 'aiko') &&
+      typeof msg.timestamp === 'number'
+    )
+    .map(msg => ({
+      id: msg.id,
+      text: msg.text.substring(0, 1000), // Limit text length
+      sender: msg.sender,
+      timestamp: msg.timestamp,
+      emotion: ['happy', 'excited', 'love', 'curious', 'proud', 'sad'].includes(msg.emotion) 
+        ? msg.emotion 
+        : undefined,
+      emoji: typeof msg.emoji === 'string' ? msg.emoji.substring(0, 10) : undefined
+    }));
+};
+
+// Remove messages older than TTL
+const cleanOldMessages = (messages: Message[]): Message[] => {
+  const now = Date.now();
+  return messages.filter(msg => now - msg.timestamp < MESSAGE_TTL);
+};
+
+// Save messages to storage with error handling
+const saveToStorage = (key: string, messages: Message[]): boolean => {
+  try {
+    const data = JSON.stringify(messages);
+    localStorage.setItem(key, data);
+    
+    // Update size estimation in storage (for info)
+    const size = new Blob([data]).size;
+    localStorage.setItem(`${key}-info`, JSON.stringify({
+      size,
+      count: messages.length,
+      lastUpdated: Date.now()
+    }));
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to save to storage:', error);
+    return false;
+  }
+};
+
+// Create backup in session storage
+const createBackup = (messages: Message[], suffix: string) => {
+  try {
+    sessionStorage.setItem(STORAGE_KEYS.SESSION(suffix), JSON.stringify(messages));
+  } catch (error) {
+    console.error('❌ Failed to create backup:', error);
+  }
+};
+
+// Migrate from legacy storage formats
+const migrateLegacyStorage = async (suffix: string): Promise<Message[]> => {
+  try {
+    const legacyKeys = [
+      `chat-history-${suffix}`,
+      `aiko-chat-${suffix}`,
+      `messages-${suffix}`
+    ];
+
+    for (const legacyKey of legacyKeys) {
+      const legacyData = localStorage.getItem(legacyKey);
+      if (legacyData) {
+        try {
+          const parsed = JSON.parse(legacyData);
+          if (Array.isArray(parsed)) {
+            const migrated = cleanMessages(parsed);
+            if (migrated.length > 0) {
+              // Save to new format
+              saveToStorage(STORAGE_KEYS.PRIMARY(suffix), migrated);
+              // Mark as migrated
+              localStorage.setItem(STORAGE_KEYS.MIGRATION(suffix), 'true');
+              // Clean up legacy storage
+              localStorage.removeItem(legacyKey);
+              return migrated;
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Failed to migrate legacy key ${legacyKey}:`, error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Legacy migration failed:', error);
+  }
+  
+  return [];
+};
+
 export function useChatHistory(storageKeySuffix: string): [
   Message[], 
   (newMessage: Message) => void, 
@@ -72,7 +171,8 @@ export function useChatHistory(storageKeySuffix: string): [
           try {
             const parsed = JSON.parse(primaryData);
             if (Array.isArray(parsed)) {
-              loadedMessages = this.cleanMessages(parsed);
+              // ✅ FIX: Ganti this.cleanMessages dengan cleanMessages
+              loadedMessages = cleanMessages(parsed);
               source = 'primary';
               console.log(`✅ Loaded ${loadedMessages.length} messages from primary storage`);
             }
@@ -88,12 +188,13 @@ export function useChatHistory(storageKeySuffix: string): [
             try {
               const parsed = JSON.parse(sessionData);
               if (Array.isArray(parsed)) {
-                loadedMessages = this.cleanMessages(parsed);
+                // ✅ FIX: Ganti this.cleanMessages dengan cleanMessages
+                loadedMessages = cleanMessages(parsed);
                 source = 'session';
                 console.log(`✅ Loaded ${loadedMessages.length} messages from session backup`);
                 
                 // Restore to primary storage
-                this.saveToStorage(storageKey, loadedMessages);
+                saveToStorage(storageKey, loadedMessages);
               }
             } catch (parseError) {
               console.error('❌ Failed to parse session storage:', parseError);
@@ -103,7 +204,7 @@ export function useChatHistory(storageKeySuffix: string): [
 
         // Priority 3: Legacy storage migration (for existing users)
         if (loadedMessages.length === 0 && !localStorage.getItem(STORAGE_KEYS.MIGRATION(storageKeySuffix))) {
-          loadedMessages = await this.migrateLegacyStorage(storageKeySuffix);
+          loadedMessages = await migrateLegacyStorage(storageKeySuffix);
           if (loadedMessages.length > 0) {
             source = 'migration';
             console.log(`✅ Migrated ${loadedMessages.length} messages from legacy storage`);
@@ -112,7 +213,8 @@ export function useChatHistory(storageKeySuffix: string): [
 
         // Clean old messages and update state
         if (loadedMessages.length > 0) {
-          const cleanedMessages = this.cleanOldMessages(loadedMessages);
+          // ✅ FIX: Ganti this.cleanOldMessages dengan cleanOldMessages
+          const cleanedMessages = cleanOldMessages(loadedMessages);
           if (cleanedMessages.length < loadedMessages.length) {
             console.log(`🧹 Cleaned ${loadedMessages.length - cleanedMessages.length} expired messages`);
           }
@@ -120,7 +222,7 @@ export function useChatHistory(storageKeySuffix: string): [
           if (isMounted.current) {
             setMessages(cleanedMessages);
             // Backup the cleaned messages
-            this.createBackup(cleanedMessages, storageKeySuffix);
+            createBackup(cleanedMessages, storageKeySuffix);
           }
         }
 
@@ -138,105 +240,6 @@ export function useChatHistory(storageKeySuffix: string): [
     loadMessages();
   }, [storageKey, storageKeySuffix]);
 
-  // Clean and validate messages
-  const cleanMessages = useCallback((messages: any[]): Message[] => {
-    if (!Array.isArray(messages)) return [];
-    
-    return messages
-      .filter(msg => 
-        msg && 
-        typeof msg === 'object' &&
-        typeof msg.id === 'string' &&
-        typeof msg.text === 'string' &&
-        (msg.sender === 'user' || msg.sender === 'aiko') &&
-        typeof msg.timestamp === 'number'
-      )
-      .map(msg => ({
-        id: msg.id,
-        text: msg.text.substring(0, 1000), // Limit text length
-        sender: msg.sender,
-        timestamp: msg.timestamp,
-        emotion: ['happy', 'excited', 'love', 'curious', 'proud', 'sad'].includes(msg.emotion) 
-          ? msg.emotion 
-          : undefined,
-        emoji: typeof msg.emoji === 'string' ? msg.emoji.substring(0, 10) : undefined
-      }));
-  }, []);
-
-  // Remove messages older than TTL
-  const cleanOldMessages = useCallback((messages: Message[]): Message[] => {
-    const now = Date.now();
-    return messages.filter(msg => now - msg.timestamp < MESSAGE_TTL);
-  }, []);
-
-  // Save messages to storage with error handling
-  const saveToStorage = useCallback((key: string, messages: Message[]) => {
-    try {
-      const data = JSON.stringify(messages);
-      localStorage.setItem(key, data);
-      
-      // Update size estimation in storage (for info)
-      const size = new Blob([data]).size;
-      localStorage.setItem(`${key}-info`, JSON.stringify({
-        size,
-        count: messages.length,
-        lastUpdated: Date.now()
-      }));
-      
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to save to storage:', error);
-      return false;
-    }
-  }, []);
-
-  // Create backup in session storage
-  const createBackup = useCallback((messages: Message[], suffix: string) => {
-    try {
-      sessionStorage.setItem(STORAGE_KEYS.SESSION(suffix), JSON.stringify(messages));
-    } catch (error) {
-      console.error('❌ Failed to create backup:', error);
-    }
-  }, []);
-
-  // Migrate from legacy storage formats
-  const migrateLegacyStorage = useCallback(async (suffix: string): Promise<Message[]> => {
-    try {
-      const legacyKeys = [
-        `chat-history-${suffix}`,
-        `aiko-chat-${suffix}`,
-        `messages-${suffix}`
-      ];
-
-      for (const legacyKey of legacyKeys) {
-        const legacyData = localStorage.getItem(legacyKey);
-        if (legacyData) {
-          try {
-            const parsed = JSON.parse(legacyData);
-            if (Array.isArray(parsed)) {
-              const migrated = this.cleanMessages(parsed);
-              if (migrated.length > 0) {
-                // Save to new format
-                this.saveToStorage(storageKey, migrated);
-                // Mark as migrated
-                localStorage.setItem(STORAGE_KEYS.MIGRATION(suffix), 'true');
-                // Clean up legacy storage
-                localStorage.removeItem(legacyKey);
-                return migrated;
-              }
-            }
-          } catch (error) {
-            console.error(`❌ Failed to migrate legacy key ${legacyKey}:`, error);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('❌ Legacy migration failed:', error);
-    }
-    
-    return [];
-  }, [cleanMessages, saveToStorage, storageKey]);
-
   // Main function to add new message
   const addMessage = useCallback((newMessage: Message) => {
     if (!storageKeySuffix || !isLoaded) {
@@ -251,11 +254,11 @@ export function useChatHistory(storageKeySuffix: string): [
       const trimmedMessages = updatedMessages.slice(-MAX_MESSAGES);
       
       // Save to primary storage
-      const saveSuccess = this.saveToStorage(storageKey, trimmedMessages);
+      const saveSuccess = saveToStorage(storageKey, trimmedMessages);
       
       // Create backup in session storage
       if (saveSuccess) {
-        this.createBackup(trimmedMessages, storageKeySuffix);
+        createBackup(trimmedMessages, storageKeySuffix);
       } else {
         console.error('❌ Primary storage failed, using session storage only');
         try {
@@ -267,7 +270,7 @@ export function useChatHistory(storageKeySuffix: string): [
       
       return trimmedMessages;
     });
-  }, [storageKey, storageKeySuffix, isLoaded, saveToStorage, createBackup]);
+  }, [storageKey, storageKeySuffix, isLoaded]);
 
   // Clear all chat history
   const clearChatHistory = useCallback(() => {
@@ -322,14 +325,15 @@ export function useChatHistory(storageKeySuffix: string): [
         throw new Error('Invalid import format: missing messages array');
       }
 
-      const cleanedMessages = this.cleanMessages(importData.messages);
+      // ✅ FIX: Ganti this.cleanMessages dengan cleanMessages
+      const cleanedMessages = cleanMessages(importData.messages);
       if (cleanedMessages.length === 0) {
         throw new Error('No valid messages found in import data');
       }
 
       setMessages(cleanedMessages);
-      this.saveToStorage(storageKey, cleanedMessages);
-      this.createBackup(cleanedMessages, storageKeySuffix);
+      saveToStorage(storageKey, cleanedMessages);
+      createBackup(cleanedMessages, storageKeySuffix);
       
       console.log(`✅ Successfully imported ${cleanedMessages.length} messages`);
       return true;
@@ -337,24 +341,25 @@ export function useChatHistory(storageKeySuffix: string): [
       console.error('❌ Failed to import chat:', error);
       return false;
     }
-  }, [storageKey, storageKeySuffix, cleanMessages, saveToStorage, createBackup]);
+  }, [storageKey, storageKeySuffix]);
 
   // Clear messages older than TTL
   const clearOldMessages = useCallback((): number => {
     if (messages.length === 0) return 0;
 
     const now = Date.now();
-    const filteredMessages = messages.filter(msg => now - msg.timestamp < MESSAGE_TTL);
+    // ✅ FIX: Ganti this.cleanOldMessages dengan cleanOldMessages
+    const filteredMessages = cleanOldMessages(messages);
     const removedCount = messages.length - filteredMessages.length;
 
     if (removedCount > 0) {
       setMessages(filteredMessages);
-      this.saveToStorage(storageKey, filteredMessages);
+      saveToStorage(storageKey, filteredMessages);
       console.log(`🧹 Cleared ${removedCount} old messages`);
     }
 
     return removedCount;
-  }, [messages, storageKey, saveToStorage]);
+  }, [messages, storageKey]);
 
   // Get storage information
   const getStorageInfo = useCallback(() => {
