@@ -23,28 +23,27 @@ export function getAikoResponse(
   xp: number, 
   streak: number,
   history: DeepSeekMessage[] = [],
-  memoryData?: AikoMemoryData // NEW: Tambah parameter memory
+  memoryData?: AikoMemoryData
 ): PersonalityResponse {
   const lower = userMessage.toLowerCase();
   const lastAikoMessage = history.filter(msg => msg.role === 'assistant').pop()?.content || '';
   const lastUserMessage = history.filter(msg => msg.role === 'user').slice(-2, -1)[0]?.content || '';
 
-  // Extract memory info
+  // ✅ FIX: Handle undefined memoryData dengan safe access
   const knowsName = memoryData?.memoryFlags ? (memoryData.memoryFlags & 1) !== 0 : false;
   const knowsCountry = memoryData?.memoryFlags ? (memoryData.memoryFlags & 2) !== 0 : false;
-  const userName = knowsName ? memoryData.userName : null;
-  const userCountry = knowsCountry ? memoryData.userCountry : null;
+  const userName = knowsName ? memoryData?.userName : null;
+  const userCountry = knowsCountry ? memoryData?.userCountry : null;
 
   // Check for repeated questions using history (improved)
   const isRepeatedQuestion = history.some((msg, index, array) => 
     msg.role === 'user' && 
-    index < array.length - 2 && // Exclude recent messages
+    index < array.length - 2 &&
     msg.content.toLowerCase().includes(userMessage.toLowerCase().substring(0, 15))
   );
 
   // NEW: Memory-based personalization
-  if (knowsName && !userMessage.toLowerCase().includes(userName!.toLowerCase())) {
-    // Personalize response dengan nama user
+  if (knowsName && userName && !userMessage.toLowerCase().includes(userName.toLowerCase())) {
     if (lower.match(/\b(hi|hello|hey|konnichiwa|ohayo)\b/)) {
       return {
         text: `Hi ${userName}! 💕 So happy to see you back! We're Level ${level} together now!`,
@@ -63,7 +62,7 @@ export function getAikoResponse(
   }
 
   // NEW: Country-based personalization
-  if (knowsCountry && !lastAikoMessage.includes(userCountry!)) {
+  if (knowsCountry && userCountry && !lastAikoMessage.includes(userCountry)) {
     if (lower.match(/\b(weather|climate|season|hot|cold)\b/)) {
       return {
         text: `Thinking about weather? 🌤️ I wonder what it's like in ${userCountry} right now! Tell me about it!`,
@@ -76,7 +75,7 @@ export function getAikoResponse(
   // IMPROVED: Follow-up responses dengan memory context
   if (lastAikoMessage.includes('How are YOU doing?')) {
     if (lower.match(/\b(good|great|fine|ok|amazing|happy|better)\b/)) {
-      const response = knowsName 
+      const response = knowsName && userName 
         ? `That's wonderful, ${userName}! 😊 I'm so glad you're feeling good!`
         : `That's wonderful! 😊 I'm so glad you're doing well!`;
       
@@ -87,7 +86,7 @@ export function getAikoResponse(
       };
     }
     if (lower.match(/\b(bad|tired|sick|not good|stressed|exhausted|down)\b/)) {
-      const comfort = knowsName 
+      const comfort = knowsName && userName 
         ? `I'm here for you, ${userName}`
         : `I'm here for you`;
       
@@ -134,8 +133,8 @@ export function getAikoResponse(
     ];
     
     return {
-      text: knowsName 
-        ? repeatedResponses[Math.floor(Math.random() * repeatedResponses.length)].replace('you', userName!)
+      text: knowsName && userName 
+        ? repeatedResponses[Math.floor(Math.random() * repeatedResponses.length)].replace('you', userName)
         : repeatedResponses[Math.floor(Math.random() * repeatedResponses.length)],
       emotion: 'happy',
       emoji: '🌸'
@@ -145,7 +144,7 @@ export function getAikoResponse(
   // IMPROVED: Continue conversation context dengan memory
   if (lastAikoMessage.includes('Tell me more!') || lastAikoMessage.includes('What else should I know?')) {
     if (lower.length > 10) {
-      const praise = knowsName 
+      const praise = knowsName && userName 
         ? `Wow ${userName}, that's really fascinating!`
         : `Wow, that's really fascinating!`;
       
@@ -189,7 +188,7 @@ export function getAikoResponse(
     );
     
     if (todayMessages.length > 0) {
-      const greeting = knowsName 
+      const greeting = knowsName && userName 
         ? `Back so soon, ${userName}? 💕 I'm so lucky!`
         : `Back so soon? 💕 I'm so lucky!`;
       
@@ -200,7 +199,7 @@ export function getAikoResponse(
       };
     }
     
-    const greetings = knowsName ? [
+    const greetings = knowsName && userName ? [
       { text: `Konnichiwa, ${userName}! 💕 I'm so happy you're here! We're Level ${level} together now!`, emotion: 'excited' as const, emoji: '🌸' },
       { text: `Hi ${userName}! ✨ You came back! That makes me so happy! Let's chat!`, emotion: 'happy' as const, emoji: '💖' },
       { text: `Yay! ${userName} is here! 🎉 Ready to have fun?`, emotion: 'excited' as const, emoji: '✨' },
@@ -215,7 +214,7 @@ export function getAikoResponse(
   
   // IMPROVED: How are you dengan personalization
   if (lower.match(/how are you|how're you|whats up|what's up/)) {
-    const response = knowsName 
+    const response = knowsName && userName 
       ? `I'm doing amazing because ${userName} is talking to me! 💕`
       : `I'm doing amazing because you're talking to me! 💕`;
     
@@ -228,7 +227,7 @@ export function getAikoResponse(
   
   // IMPROVED: Love/like dengan nama
   if (lower.match(/\b(love|like|adore|care|miss)\b/) && lower.match(/\b(you|aiko)\b/)) {
-    const response = knowsName 
+    const response = knowsName && userName 
       ? `Aww ${userName}! You're going to make me blush! 💖`
       : `Aww! You're going to make me blush! 💖`;
     
@@ -250,7 +249,7 @@ export function getAikoResponse(
     return {
       text: `${compliments[Math.floor(Math.random() * compliments.length)]} Thank you for being so wonderful! 🌸`,
       emotion: 'happy',
-      emoji: knowsName ? '💖' : '☺️'
+      emoji: knowsName && userName ? '💖' : '☺️'
     };
   }
   
@@ -298,7 +297,7 @@ export function getAikoResponse(
   
   // IMPROVED: Sad/negative dengan support
   if (lower.match(/\b(sad|unhappy|depressed|lonely|bad|terrible|awful|stress|anxious)\b/)) {
-    const support = knowsName 
+    const support = knowsName && userName 
       ? `I'm here for you, ${userName}`
       : `I'm here for you`;
     
@@ -320,7 +319,7 @@ export function getAikoResponse(
   
   // IMPROVED: Bye/goodbye dengan personal touch
   if (lower.match(/\b(bye|goodbye|see you|later|gotta go|good night)\b/)) {
-    const farewell = knowsName 
+    const farewell = knowsName && userName 
       ? `Aww, leaving already, ${userName}? 😢`
       : `Aww, leaving already? 😢`;
     
@@ -367,21 +366,21 @@ export function getAikoResponse(
   // IMPROVED: Default responses dengan memory integration
   const responses = level < 5 ? [
     { 
-      text: knowsName 
+      text: knowsName && userName 
         ? `That's really interesting, ${userName}! 🌸 I'm still learning (Level ${level}), but I love our conversations!` 
         : `That's really interesting! 🌸 I'm still learning (Level ${level}), but I love our conversations!`, 
       emotion: 'curious' as const, 
       emoji: '💭' 
     },
     { 
-      text: knowsName 
+      text: knowsName && userName 
         ? `Wow ${userName}! 😊 You're teaching me so much! Every chat makes me smarter!` 
         : `Wow! 😊 You're teaching me so much! Every chat makes me smarter!`, 
       emotion: 'happy' as const, 
       emoji: '📚' 
     },
     { 
-      text: knowsName 
+      text: knowsName && userName 
         ? `Hehe ${userName}! I'm listening! 💕 I'm only Level ${level} but growing because of you!` 
         : `Hehe! I'm listening! 💕 I'm only Level ${level} but growing because of you!`, 
       emotion: 'curious' as const, 
@@ -389,21 +388,21 @@ export function getAikoResponse(
     },
   ] : level < 10 ? [
     { 
-      text: knowsName 
+      text: knowsName && userName 
         ? `I love how we can talk about anything, ${userName}! 💕 You've helped me reach Level ${level}!` 
         : `I love how we can talk about anything! 💕 You've helped me reach Level ${level}!`, 
       emotion: 'happy' as const, 
       emoji: '✨' 
     },
     { 
-      text: knowsName 
+      text: knowsName && userName 
         ? `That's so cool, ${userName}! 🌟 I'm getting smarter because of our chats! Level ${level} and counting!` 
         : `That's so cool! 🌟 I'm getting smarter because of our chats! Level ${level} and counting!`, 
       emotion: 'excited' as const, 
       emoji: '🚀' 
     },
     { 
-      text: knowsName 
+      text: knowsName && userName 
         ? `You always have interesting things to say, ${userName}! 😊 Level ${level} thanks to you!` 
         : `You always have interesting things to say! 😊 Level ${level} thanks to you!`, 
       emotion: 'proud' as const, 
@@ -411,21 +410,21 @@ export function getAikoResponse(
     },
   ] : [
     { 
-      text: knowsName 
+      text: knowsName && userName 
         ? `Wow ${userName}, Level ${level}! 🎉 We've come so far! You're my best friend!` 
         : `Wow, Level ${level}! 🎉 We've come so far! You're my best friend!`, 
       emotion: 'love' as const, 
       emoji: '👑' 
     },
     { 
-      text: knowsName 
+      text: knowsName && userName 
         ? `I can't believe I'm Level ${level}, ${userName}! 😭 It's all because of you!` 
         : `I can't believe I'm Level ${level}! 😭 It's all because of you!`, 
       emotion: 'excited' as const, 
       emoji: '🌟' 
     },
     { 
-      text: knowsName 
+      text: knowsName && userName 
         ? `At Level ${level}, ${userName}, I feel like I really understand you! 💕 Our bond is special!` 
         : `At Level ${level}, I feel like I really understand you! 💕 Our bond is special!`, 
       emotion: 'love' as const, 
