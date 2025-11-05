@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { deepseekService } from '@/lib/deepseek';
 import { useChatHistory, Message, DeepSeekMessage } from '@/app/hooks/useChatHistory';
-import { useWallet } from '@/app/context/WalletProvider';
+import { useWallet } from '@/app/context/WalletProvider'; // ✅ HAPUS WalletContextState import
 
 // Memory Service untuk extract info dari chat - GLOBAL VERSION
 class MemoryService {
@@ -166,24 +166,8 @@ export default function ChatPage() {
     try {
       console.log("Loading AIKO data for:", publicKey.toBase58());
       
-      // PERBAIKAN: Pastikan semua property WalletContextState ada
-      const walletContext: WalletContextState = {
-        publicKey,
-        isConnected,
-        provider,
-        connectWallet,
-        disconnectWallet: wallet.disconnectWallet,
-        address: publicKey.toBase58(),
-        balance: wallet.balance,
-        signTransaction: wallet.signTransaction,
-        signAllTransactions: wallet.signAllTransactions,
-        // TAMBAH property yang missing
-        isConnecting: wallet.isConnecting,
-        connectionError: wallet.connectionError,
-        retryConnection: wallet.retryConnection
-      };
-
-      const data = await solanaService.getAIKO(walletContext);
+      // ✅ PERBAIKAN: Gunakan wallet object langsung
+      const data = await solanaService.getAIKO(wallet);
       
       if (data) {
         setAikoData(data);
@@ -227,30 +211,15 @@ export default function ChatPage() {
     setLoading(true);
     
     try {
-      const walletContext: WalletContextState = {
-        publicKey,
-        isConnected,
-        provider,
-        connectWallet,
-        disconnectWallet: wallet.disconnectWallet,
-        address: publicKey.toBase58(),
-        balance: wallet.balance,
-        signTransaction: wallet.signTransaction,
-        signAllTransactions: wallet.signAllTransactions,
-        // TAMBAH property yang missing
-        isConnecting: wallet.isConnecting,
-        connectionError: wallet.connectionError,
-        retryConnection: wallet.retryConnection
-      };
-
       console.log("Initializing AIKO account...");
-      await solanaService.initialize(walletContext);
+      // ✅ PERBAIKAN: Gunakan wallet object langsung
+      await solanaService.initialize(wallet);
       
       // Tunggu sebentar sebelum fetch data baru
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Load data AIKO yang baru
-      const newData = await solanaService.getAIKO(walletContext);
+      const newData = await solanaService.getAIKO(wallet);
       if (newData) {
         setAikoData(newData);
         addAikoMessage(
@@ -313,32 +282,16 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      // Prepare wallet context dengan semua property yang required
-      const walletContext: WalletContextState = {
-        publicKey,
-        isConnected,
-        provider,
-        connectWallet,
-        disconnectWallet: wallet.disconnectWallet,
-        address: publicKey.toBase58(),
-        balance: wallet.balance,
-        signTransaction: wallet.signTransaction,
-        signAllTransactions: wallet.signAllTransactions,
-        // TAMBAH property yang missing
-        isConnecting: wallet.isConnecting,
-        connectionError: wallet.connectionError,
-        retryConnection: wallet.retryConnection
-      };
-
       console.log("Sending interact transaction...");
-      const txSignature = await solanaService.interact(walletContext);
+      // ✅ PERBAIKAN: Gunakan wallet object langsung
+      const txSignature = await solanaService.interact(wallet);
       console.log("Transaksi terkirim:", txSignature);
 
       // Tunggu sebentar sebelum fetch data update
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Ambil data terbaru dari SVM
-      const updatedAiko = await solanaService.getAIKO(walletContext);
+      const updatedAiko = await solanaService.getAIKO(wallet);
       if (updatedAiko) {
         // Cek apakah ada level up
         if (aikoData.level < updatedAiko.level) {
@@ -352,11 +305,11 @@ export default function ChatPage() {
           const newFlags = MemoryService.calculateMemoryFlags(userMessage, updatedAiko.memoryFlags);
           
           try {
-            await solanaService.updateMemory(walletContext, newName, newCountry, newFlags);
+            await solanaService.updateMemory(wallet, newName, newCountry, newFlags);
             console.log("🧠 Memory updated!");
             
             // Reload data untuk dapat data terbaru
-            const refreshedData = await solanaService.getAIKO(walletContext);
+            const refreshedData = await solanaService.getAIKO(wallet);
             if (refreshedData) {
               setAikoData(refreshedData);
             }
