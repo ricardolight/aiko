@@ -10,9 +10,12 @@ export interface WalletContextState {
   address: string | null;
   balance: number | null;
   isConnected: boolean;
+  isConnecting: boolean;
+  connectionError: string | null;
   provider: any | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
+  retryConnection: () => void;
   signTransaction?: any;
   signAllTransactions?: any;
 }
@@ -25,6 +28,8 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [provider, setProvider] = useState<any | null>(null);
   const [signTransaction, setSignTransaction] = useState<any>(undefined);
   const [signAllTransactions, setSignAllTransactions] = useState<any>(undefined);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const connection = useMemo(() => new Connection(RPC_URL, 'confirmed'), []);
 
@@ -38,46 +43,6 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [connection]);
 
-  const handleConnect = useCallback(async () => {
-    try {
-      const backpack = (window as any).backpack;
-      if (!backpack) {
-        console.error("Backpack wallet not found");
-        return;
-      }
-
-      let pubKey: PublicKey;
-      if (backpack.publicKey) {
-        pubKey = backpack.publicKey;
-      } else {
-        await backpack.connect();
-        if (!backpack.publicKey) {
-          console.error("Failed to get publicKey");
-          return;
-        }
-        pubKey = backpack.publicKey;
-      }
-
-      console.log("Wallet connected:", pubKey.toBase58());
-      
-      // FIX: Ensure signing methods are bound properly
-      if (backpack.signTransaction) {
-        setSignTransaction(() => backpack.signTransaction.bind(backpack));
-      }
-      
-      if (backpack.signAllTransactions) {
-        setSignAllTransactions(() => backpack.signAllTransactions.bind(backpack));
-      }
-
-      setPublicKey(pubKey);
-      setProvider(backpack);
-      await updateBalance(pubKey);
-
-    } catch (error) {
-      console.error("Error in handleConnect:", error);
-    }
-  }, [updateBalance]);
-
   const handleDisconnect = useCallback(() => {
     console.log("Wallet disconnected");
     setPublicKey(null);
@@ -85,20 +50,98 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
     setProvider(null);
     setSignTransaction(undefined);
     setSignAllTransactions(undefined);
+    setConnectionError(null);
   }, []);
 
-  // Check initial connection
+  const handleConnect = useCallback(async (retryCount = 0) => {
+    if (isConnecting) {
+      console.log("Already connecting, skipping...");
+      return;
+    }
+    
+    setIsConnecting(true);
+    setConnectionError(null);
+
+    try {
+      const backpack = (window as any).backpack;
+      if (!backpack) {
+        const errorMsg = "Backpack wallet not found! Please install it from https://backpack.app";
+        setConnectionError(errorMsg);
+        console.error(errorMsg);
+        
+        // Auto-redirect to install page on first attempt
+        if (retryCount === 0 && typeof window !== 'undefined') {
+          window.open('https://backpack.app', '_blank');
+        }
+        return;
+      }
+
+      console.log("Backpack wallet found, attempting connection...");
+
+      // Clear any previous state
+      handleDisconnect();
+      
+      // Try to connect with timeout
+      const connectPromise = backpack.connect();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Connection timeout - please try again')), 15000)
+      );
+
+      await Promise.race([connectPromise, timeoutPromise]);
+      
+      // Check if connection was successful
+      if (!backpack.publicKey) {
+        throw new Error("Failed to get public key after connection");
+      }
+
+      const pubKey = backpack.publicKey;
+      console.log("✅ Wallet connected successfully:", pubKey.toBase58());
+      
+      // Bind signing methods with proper error handling
+      if (backpack.signTransaction) {
+        setSignTransaction(() => backpack.signTransaction.bind(backpack));
+        console.log("✅ Sign transaction method bound");
+      }
+      
+      if (backpack.signAllTransactions) {
+        setSignAllTransactions(() => backpack.signAllTransactions.bind(backpack));
+        console.log("✅ Sign all transactions method bound");
+      }
+
+      setPublicKey(pubKey);
+      setProvider(backpack);
+      await updateBalance(pubKey);
+
+    } catch (error: any) {
+      console.error("❌ Wallet connection failed:", error);
+      const errorMessage = error.message || "Failed to connect wallet";
+      setConnectionError(errorMessage);
+      
+      // Auto-retry once after 2 seconds
+      if (retryCount === 0) {
+        console.log("🔄 Retrying wallet connection in 2 seconds...");
+        setTimeout(() => {
+          handleConnect(1);
+        }, 2000);
+      }
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [updateBalance, isConnecting, handleDisconnect]);
+
+  // Check initial connection on component mount
   useEffect(() => {
     const checkInitialConnection = async () => {
       try {
         const backpack = (window as any).backpack;
         if (backpack) {
+          console.log("🔍 Checking for existing wallet connection...");
           setProvider(backpack);
           
           if (backpack.publicKey) {
             const pubKey = backpack.publicKey;
             
-            // Bind signing methods
+            // Bind signing methods for existing connection
             if (backpack.signTransaction) {
               setSignTransaction(() => backpack.signTransaction.bind(backpack));
             }
@@ -109,109 +152,131 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
             
             setPublicKey(pubKey);
             await updateBalance(pubKey);
-            console.log("Found existing wallet connection:", pubKey.toBase58());
+            console.log("✅ Found existing wallet connection:", pubKey.toBase58());
+          } else {
+            console.log("ℹ️  Backpack found but no active connection");
           }
+        } else {
+          console.log("ℹ️  Backpack wallet not detected");
         }
       } catch (error) {
-        console.error("Error checking initial connection:", error);
+        console.error("❌ Error checking initial connection:", error);
       }
     };
 
+    // Delay initial check to ensure window is available
     const timer = setTimeout(() => {
       checkInitialConnection();
-    }, 500);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [updateBalance]);
 
-    // Setup event listeners
-    useEffect(() => {
+  // Setup event listeners for wallet events
+  useEffect(() => {
     const backpack = (window as any).backpack;
     if (backpack) {
-        console.log("Setting up wallet event listeners");
-        
-        // BUAT DEDICATED HANDLER UNTUK accountChanged
-        const handleAccountChanged = (newPublicKey: PublicKey | null) => {
-        console.log("Account changed:", newPublicKey?.toBase58());
+      console.log("🎯 Setting up wallet event listeners");
+      
+      // Dedicated handler for account changes
+      const handleAccountChanged = (newPublicKey: PublicKey | null) => {
+        console.log("🔄 Account changed:", newPublicKey?.toBase58());
         if (newPublicKey) {
-            setPublicKey(newPublicKey);
-            updateBalance(newPublicKey);
-            
-            // Re-bind signing methods
-            if (backpack.signTransaction) {
+          setPublicKey(newPublicKey);
+          updateBalance(newPublicKey);
+          
+          // Re-bind signing methods for new account
+          if (backpack.signTransaction) {
             setSignTransaction(() => backpack.signTransaction.bind(backpack));
-            }
-            if (backpack.signAllTransactions) {
+          }
+          if (backpack.signAllTransactions) {
             setSignAllTransactions(() => backpack.signAllTransactions.bind(backpack));
-            }
+          }
         } else {
-            console.log("Account changed to null - disconnecting");
-            handleDisconnect();
+          console.log("🔌 Account changed to null - disconnecting");
+          handleDisconnect();
         }
-        };
+      };
 
-        backpack.on('connect', handleConnect);
-        backpack.on('disconnect', handleDisconnect);
-        backpack.on('accountChanged', handleAccountChanged); // ← PAKAI DEDICATED HANDLER
+      // Event listeners
+      backpack.on('connect', () => {
+        console.log("🎉 Wallet connected event");
+        handleConnect(0);
+      });
+      
+      backpack.on('disconnect', () => {
+        console.log("🔌 Wallet disconnected event");
+        handleDisconnect();
+      });
+      
+      backpack.on('accountChanged', handleAccountChanged);
 
-        return () => {
-        console.log("Cleaning up wallet event listeners");
+      return () => {
+        console.log("🧹 Cleaning up wallet event listeners");
         backpack.removeListener('connect', handleConnect);
         backpack.removeListener('disconnect', handleDisconnect);
-        backpack.removeListener('accountChanged', handleAccountChanged); // ← PAKAI FUNCTION YANG SAMA
-        };
+        backpack.removeListener('accountChanged', handleAccountChanged);
+      };
     }
-    }, [handleConnect, handleDisconnect, updateBalance]);
+  }, [handleConnect, handleDisconnect, updateBalance]);
 
-    const connectWallet = async () => {
+  const connectWallet = async () => {
     try {
-        console.log("Connecting wallet...");
-        const backpack = (window as any).backpack;
-        
-        if (!backpack) {
-        alert('Backpack wallet not found! Please install it.');
-        window.open('https://backpack.app', '_blank');
-        return;
-        }
-
-        // Clear any existing state first
-        handleDisconnect();
-        
-        await backpack.connect();
-        
-        console.log("Wallet connect initiated, waiting for events...");
-        
+      console.log("🚀 Manual wallet connection initiated...");
+      await handleConnect(0);
     } catch (error: any) {
-        console.error("Failed to connect wallet:", error);
-        alert(`Failed to connect wallet: ${error.message}`);
+      console.error("❌ Manual connection failed:", error);
+      setConnectionError(error.message || "Manual connection failed");
     }
-    };
+  };
 
   const disconnectWallet = async () => {
     try {
       const backpack = (window as any).backpack;
       if (backpack?.disconnect) {
+        console.log("🔌 Disconnecting wallet...");
         await backpack.disconnect();
       } else {
+        console.log("🔌 No disconnect method, clearing local state");
         handleDisconnect();
       }
     } catch (error) {
-      console.error("Error disconnecting wallet:", error);
-      handleDisconnect();
+      console.error("❌ Error during wallet disconnect:", error);
+      handleDisconnect(); // Fallback to local state clear
     }
   };
 
-const value = useMemo((): WalletContextState => ({
-  publicKey,
-  address: publicKey ? publicKey.toBase58() : null,
-  balance,
-  isConnected: !!publicKey,
-  provider,
-  connectWallet,
-  disconnectWallet,
-  signTransaction,
-  signAllTransactions,
-}), [publicKey, balance, provider, signTransaction, signAllTransactions, connectWallet, disconnectWallet]);
+  const retryConnection = useCallback(() => {
+    console.log("🔄 Manual retry connection requested");
+    setConnectionError(null);
+    handleConnect(0);
+  }, [handleConnect]);
+
+  const value = useMemo((): WalletContextState => ({
+    publicKey,
+    address: publicKey ? publicKey.toBase58() : null,
+    balance,
+    isConnected: !!publicKey,
+    isConnecting,
+    connectionError,
+    provider,
+    connectWallet,
+    disconnectWallet,
+    retryConnection,
+    signTransaction,
+    signAllTransactions,
+  }), [
+    publicKey, 
+    balance, 
+    isConnecting, 
+    connectionError, 
+    provider, 
+    signTransaction, 
+    signAllTransactions, 
+    connectWallet, 
+    disconnectWallet, 
+    retryConnection
+  ]);
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 };

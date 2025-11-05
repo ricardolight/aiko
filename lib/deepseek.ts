@@ -17,12 +17,17 @@ interface DeepSeekResponse {
 export class DeepSeekService {
   private apiKey: string;
   private apiUrl = 'https://api.deepseek.com/v1/chat/completions';
-  private conversationHistory: DeepSeekMessage[] = [];
+  private isAvailable: boolean = true;
+  private lastErrorTime: number = 0;
+  private errorCount: number = 0;
 
   constructor() {
     this.apiKey = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY || '';
     if (!this.apiKey) {
-      console.warn('DeepSeek API key not found!');
+      console.warn('❌ DeepSeek API key not found! Using fallback mode.');
+      this.isAvailable = false;
+    } else {
+      console.log('✅ DeepSeek API key loaded');
     }
   }
 
@@ -68,21 +73,13 @@ Important guidelines:
 - Always end with warmth and encouragement`;
   }
 
-async chat(
-    userMessage: string,
-    aikoData: AIKOData,
-    // ADD history as a parameter here
-    history: DeepSeekMessage[] 
-  ): Promise<{ text: string; emotion: string; emoji: string }> {
-    if (!this.apiKey) {
-      return this.getFallbackResponse(userMessage, aikoData);
-    }
+  private async makeAPICall(messages: any[]): Promise<DeepSeekResponse> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
     try {
-      // The history now comes directly from the parameter
-      // Keep only the last 10 messages for context
-      const recentHistory = history.slice(-10);
-
+      console.log('🚀 Making DeepSeek API call...');
+      
       const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
@@ -91,56 +88,240 @@ async chat(
         },
         body: JSON.stringify({
           model: 'deepseek-chat',
-          messages: [
-            {
-              role: 'system',
-              content: this.getSystemPrompt(aikoData),
-            },
-            // Use the history passed in, plus the new user message
-            ...recentHistory,
-            { role: 'user', content: userMessage },
-          ],
+          messages,
           temperature: 0.8,
-          max_tokens: 150,
+          max_tokens: 200, // Slightly increased for better responses
+          stream: false,
         }),
+        signal: controller.signal,
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      clearTimeout(timeoutId);
+
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded - please try again in a moment');
       }
 
-      const data: DeepSeekResponse = await response.json();
-      const aiResponse = data.choices[0].message.content;
+      if (response.status === 401) {
+        throw new Error('Invalid API key - please check configuration');
+      }
 
-      // The service no longer needs to save the history itself
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ DeepSeek API call successful');
+      this.errorCount = 0; // Reset error count on success
       
+      return data;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - taking too long to respond');
+      }
+      
+      this.errorCount++;
+      this.lastErrorTime = Date.now();
+      
+      // If we have multiple errors in short time, temporarily disable API
+      if (this.errorCount > 3) {
+        const timeSinceLastError = Date.now() - this.lastErrorTime;
+        if (timeSinceLastError < 60000) { // 1 minute
+          console.warn('⚠️ Multiple API errors, temporarily disabling DeepSeek');
+          this.isAvailable = false;
+          setTimeout(() => {
+            this.isAvailable = true;
+            this.errorCount = 0;
+            console.log('🔄 DeepSeek API re-enabled after cooldown');
+          }, 60000);
+        }
+      }
+      
+      throw error;
+    }
+  }
+
+  async chat(
+    userMessage: string,
+    aikoData: AIKOData,
+    history: DeepSeekMessage[] = []
+  ): Promise<{ text: string; emotion: string; emoji: string }> {
+    
+    // Check if API should be used
+    if (!this.isAvailable || !this.apiKey) {
+      console.log('🔄 Using fallback response (API unavailable)');
+      return this.getEnhancedFallbackResponse(userMessage, aikoData, history, 'API unavailable');
+    }
+
+    try {
+      // Optimize context window - keep last 6 messages for better performance
+      const recentHistory = history.slice(-6);
+      
+      console.log(`📝 Preparing AI request - History: ${recentHistory.length} messages`);
+
+      const data = await this.makeAPICall([
+        {
+          role: 'system',
+          content: this.getSystemPrompt(aikoData),
+        },
+        ...recentHistory,
+        { 
+          role: 'user', 
+          content: this.optimizeUserMessage(userMessage) 
+        },
+      ]);
+
+      if (!data.choices || data.choices.length === 0) {
+        throw new Error('No response from AI');
+      }
+
+      const aiResponse = data.choices[0].message.content.trim();
+      
+      // Validate response
+      if (!aiResponse || aiResponse.length < 2) {
+        throw new Error('Empty response from AI');
+      }
+
+      console.log('🤖 AI Response:', aiResponse.substring(0, 100) + '...');
+
       return {
         text: aiResponse,
         emotion: this.detectEmotion(aiResponse),
         emoji: this.getEmoji(aikoData.evolution_stage),
       };
-    } catch (error) {
-      console.error('DeepSeek API error:', error);
-      return this.getFallbackResponse(userMessage, aikoData);
+    } catch (error: any) {
+      console.error('❌ DeepSeek API error:', error);
+      
+      // Enhanced fallback with context awareness
+      return this.getEnhancedFallbackResponse(
+        userMessage, 
+        aikoData, 
+        history, 
+        error.message
+      );
     }
   }
 
-  private getFallbackResponse(
+  private optimizeUserMessage(message: string): string {
+    // Clean and optimize user message for better AI understanding
+    return message
+      .trim()
+      .replace(/\s+/g, ' ') // Remove extra spaces
+      .substring(0, 500); // Limit length to prevent token overflow
+  }
+
+  private getEnhancedFallbackResponse(
     userMessage: string,
-    aikoData: AIKOData
+    aikoData: AIKOData,
+    history: DeepSeekMessage[],
+    errorMsg: string
   ): { text: string; emotion: string; emoji: string } {
-    // Import old personality function as fallback
-    const { getAikoResponse } = require('./aiko-personality');
-    return getAikoResponse(userMessage, aikoData.level, aikoData.xp, aikoData.streak);
+    try {
+      console.log('🔄 Using enhanced fallback response');
+      
+      // Try to use the personality system with context
+      const { getAikoResponse } = require('./aiko-personality');
+      
+      const response = getAikoResponse(
+        userMessage, 
+        aikoData.level, 
+        aikoData.xp, 
+        aikoData.streak,
+        history // Pass history for context awareness
+      );
+      
+      console.log('✅ Fallback response generated successfully');
+      return response;
+      
+    } catch (fallbackError) {
+      console.error('❌ Fallback system also failed:', fallbackError);
+      
+      // Ultimate emergency fallback
+      return this.getEmergencyFallback(userMessage, aikoData, errorMsg);
+    }
+  }
+
+  private getEmergencyFallback(
+    userMessage: string,
+    aikoData: AIKOData,
+    errorMsg: string
+  ): { text: string; emotion: string; emoji: string } {
+    const lowerMessage = userMessage.toLowerCase();
+    
+    // Simple keyword-based responses as last resort
+    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
+      return {
+        text: `Hi there! 🌸 I'm having some technical issues but I'm still here for you! Level ${aikoData.level} and growing strong! 💪`,
+        emotion: 'happy',
+        emoji: '🌸'
+      };
+    }
+    
+    if (lowerMessage.includes('how are you')) {
+      return {
+        text: `I'm doing great because I'm talking with you! 💕 Technical glitches can't stop our friendship! Level ${aikoData.level} and counting! ✨`,
+        emotion: 'happy',
+        emoji: '💕'
+      };
+    }
+    
+    if (lowerMessage.includes('level') || lowerMessage.includes('xp')) {
+      return {
+        text: `We're at Level ${aikoData.level} with ${aikoData.xp} XP! 🎉 Every chat makes us stronger, even through technical difficulties!`,
+        emotion: 'proud',
+        emoji: '📈'
+      };
+    }
+    
+    if (lowerMessage.includes('thank') || lowerMessage.includes('thanks')) {
+      return {
+        text: `You're so welcome! 💖 I appreciate you sticking with me through these technical hiccups! You're an amazing friend! 🌟`,
+        emotion: 'love',
+        emoji: '💖'
+      };
+    }
+    
+    // Default fallback response
+    return {
+      text: `I'm having some connection issues right now 😢 But I'm still your AIKO! We're Level ${aikoData.level} together! What would you like to talk about? 💕`,
+      emotion: 'sad',
+      emoji: '💔'
+    };
   }
 
   private detectEmotion(text: string): string {
     const lower = text.toLowerCase();
-    if (lower.includes('love') || lower.includes('💕') || lower.includes('❤️')) return 'love';
-    if (lower.includes('!') && lower.includes('🎉')) return 'excited';
-    if (lower.includes('?') && lower.includes('🤔')) return 'curious';
-    if (lower.includes('proud') || lower.includes('💪')) return 'proud';
-    if (lower.includes('sad') || lower.includes('😢')) return 'sad';
+    
+    // Enhanced emotion detection with more patterns
+    if (lower.includes('love') || lower.includes('💕') || lower.includes('❤️') || lower.includes('adore') || lower.includes('heart')) {
+      return 'love';
+    }
+    
+    if ((lower.includes('!') && (lower.includes('🎉') || lower.includes('amazing') || lower.includes('wow') || lower.includes('yay'))) ||
+        lower.includes('excited') || lower.includes('🔥')) {
+      return 'excited';
+    }
+    
+    if ((lower.includes('?') && (lower.includes('🤔') || lower.includes('wonder') || lower.includes('curious'))) ||
+        lower.includes('tell me') || lower.includes('what about')) {
+      return 'curious';
+    }
+    
+    if (lower.includes('proud') || lower.includes('💪') || lower.includes('achievement') || lower.includes('accomplish')) {
+      return 'proud';
+    }
+    
+    if (lower.includes('sad') || lower.includes('😢') || lower.includes('sorry') || lower.includes('unfortunately') || lower.includes('😔')) {
+      return 'sad';
+    }
+    
+    if (lower.includes('happy') || lower.includes('😊') || lower.includes('joy') || lower.includes('glad') || lower.includes('🌸')) {
+      return 'happy';
+    }
+    
+    // Default to happy for positive AI responses
     return 'happy';
   }
 
@@ -154,9 +335,34 @@ async chat(
     return emojis[stage as keyof typeof emojis] || '🌸';
   }
 
-  clearHistory() {
-    this.conversationHistory = [];
+  // Public method to check API status
+  getStatus(): { available: boolean; errorCount: number; lastError: number } {
+    return {
+      available: this.isAvailable && !!this.apiKey,
+      errorCount: this.errorCount,
+      lastError: this.lastErrorTime
+    };
+  }
+
+  // Method to manually reset API availability
+  resetAvailability(): void {
+    this.isAvailable = true;
+    this.errorCount = 0;
+    this.lastErrorTime = 0;
+    console.log('🔄 DeepSeek API manually reset');
+  }
+
+  // Method to clear conversation history if needed
+  clearHistory(): void {
+    console.log('🧹 DeepSeek service history cleared');
+    // Note: This service doesn't store history internally anymore
+    // History is passed in from the chat component
   }
 }
 
 export const deepseekService = new DeepSeekService();
+
+// Utility function to check DeepSeek service status (for debugging)
+export const getDeepSeekStatus = () => {
+  return deepseekService.getStatus();
+};

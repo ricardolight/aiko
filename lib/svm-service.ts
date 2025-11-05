@@ -10,7 +10,7 @@ import BN from 'bn.js';
 import { sha256 } from 'js-sha256';
 
 const RPC_URL = 'https://rpc.testnet.carv.io/rpc';
-const PROGRAM_ID = new PublicKey('ApwsuCKnbuhZYgWqok3Sx3umk15P1RR3MdEawwvN26pi');
+const PROGRAM_ID = new PublicKey('9n3jKvncH2XTgvCsfhQDw1pdWPz4nrj6bFata9zEkqiU');
 
 // Function untuk generate instruction discriminator dari instruction name
 function getInstructionDiscriminator(instructionName: string): Buffer {
@@ -22,9 +22,11 @@ function getInstructionDiscriminator(instructionName: string): Buffer {
 
 const INITIALIZE_DISCRIMINATOR = getInstructionDiscriminator('initialize');
 const INTERACT_DISCRIMINATOR = getInstructionDiscriminator('interact');
+const UPDATE_MEMORY_DISCRIMINATOR = getInstructionDiscriminator('update_memory'); // NEW
 
 console.log('🔑 Initialize Discriminator:', Array.from(INITIALIZE_DISCRIMINATOR));
 console.log('🔑 Interact Discriminator:', Array.from(INTERACT_DISCRIMINATOR));
+console.log('🔑 Update Memory Discriminator:', Array.from(UPDATE_MEMORY_DISCRIMINATOR));
 
 export interface AikoAccount {
   owner: PublicKey;
@@ -33,6 +35,9 @@ export interface AikoAccount {
   totalInteractions: BN;
   lastInteraction: BN;
   streak: BN;
+  userName: string;           // NEW
+  userCountry: string;        // NEW  
+  memoryFlags: number;        // NEW
 }
 
 class SvmService {
@@ -69,6 +74,21 @@ class SvmService {
       offset += 8;
 
       const streak = new BN(data.slice(offset, offset + 8), 'le');
+      offset += 8;
+
+      // NEW: Deserialize string fields
+      const userNameLength = data.readUInt32LE(offset);
+      offset += 4;
+      const userName = data.slice(offset, offset + userNameLength).toString('utf8');
+      offset += userNameLength;
+
+      const userCountryLength = data.readUInt32LE(offset);
+      offset += 4;
+      const userCountry = data.slice(offset, offset + userCountryLength).toString('utf8');
+      offset += userCountryLength;
+
+      const memoryFlags = data.readUInt8(offset);
+      offset += 1;
 
       return {
         owner,
@@ -76,11 +96,41 @@ class SvmService {
         xp,
         totalInteractions,
         lastInteraction,
-        streak
+        streak,
+        userName,
+        userCountry,
+        memoryFlags
       };
     } catch (error: any) {
+      console.error('Deserialization error:', error);
       throw new Error(`Failed to deserialize: ${error.message}`);
     }
+  }
+
+  // NEW: Function untuk serialize memory data
+  private serializeMemoryData(name: string, country: string, flags: number): Buffer {
+    const nameBuffer = Buffer.from(name, 'utf8');
+    const countryBuffer = Buffer.from(country, 'utf8');
+    
+    const buffer = Buffer.alloc(4 + nameBuffer.length + 4 + countryBuffer.length + 1);
+    let offset = 0;
+    
+    // Write name length + data
+    buffer.writeUInt32LE(nameBuffer.length, offset);
+    offset += 4;
+    nameBuffer.copy(buffer, offset);
+    offset += nameBuffer.length;
+    
+    // Write country length + data  
+    buffer.writeUInt32LE(countryBuffer.length, offset);
+    offset += 4;
+    countryBuffer.copy(buffer, offset);
+    offset += countryBuffer.length;
+    
+    // Write flags
+    buffer.writeUInt8(flags, offset);
+    
+    return buffer;
   }
 
   async getAIKO(wallet: WalletContextState): Promise<AikoAccount | null> {
@@ -269,6 +319,84 @@ class SvmService {
       }
       
       throw new Error(`Interact failed: ${error.message}`);
+    }
+  }
+
+  // NEW: Update memory function
+  async updateMemory(wallet: WalletContextState, name: string, country: string, flags: number): Promise<string> {
+    if (!wallet.publicKey || !wallet.signTransaction) {
+      throw new Error('Wallet not ready');
+    }
+
+    try {
+      console.log('🧠 Updating AIKO memory...');
+      
+      const [aikoPda] = this.getAikoPda(wallet.publicKey);
+      console.log('🔑 Using discriminator:', Array.from(UPDATE_MEMORY_DISCRIMINATOR));
+
+      // Check account exists
+      const accountInfo = await this.connection.getAccountInfo(aikoPda);
+      if (!accountInfo) {
+        throw new Error('AIKO not initialized. Please initialize first.');
+      }
+
+      // Serialize memory data
+      const memoryData = this.serializeMemoryData(name, country, flags);
+      const instructionData = Buffer.concat([UPDATE_MEMORY_DISCRIMINATOR, memoryData]);
+
+      // Instruction untuk update memory
+      const instruction = new TransactionInstruction({
+        keys: [
+          { pubkey: aikoPda, isSigner: false, isWritable: true },
+          { pubkey: wallet.publicKey, isSigner: false, isWritable: false },
+          { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+        ],
+        programId: PROGRAM_ID,
+        data: instructionData,
+      });
+
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+
+      const transaction = new Transaction({
+        feePayer: wallet.publicKey,
+        blockhash,
+        lastValidBlockHeight,
+      }).add(instruction);
+
+      console.log('📝 Signing memory update...');
+      const signed = await wallet.signTransaction(transaction);
+
+      console.log('📤 Sending memory update...');
+      const signature = await this.connection.sendRawTransaction(
+        signed.serialize(),
+        {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+        }
+      );
+
+      console.log('⏳ Confirming memory update...', signature);
+      const confirmation = await this.connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+
+      if (confirmation.value.err) {
+        throw new Error(`Memory update failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
+
+      console.log('✅ Memory updated!', signature);
+      return signature;
+
+    } catch (error: any) {
+      console.error('❌ Memory update failed:', error);
+      
+      if (error.logs) {
+        console.error('Program logs:', error.logs);
+      }
+      
+      throw new Error(`Memory update failed: ${error.message}`);
     }
   }
 

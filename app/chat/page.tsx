@@ -8,6 +8,93 @@ import { deepseekService } from '@/lib/deepseek';
 import { useChatHistory, Message, DeepSeekMessage } from '@/app/hooks/useChatHistory';
 import { useWallet } from '@/app/context/WalletProvider';
 
+// Memory Service untuk extract info dari chat - GLOBAL VERSION
+class MemoryService {
+  static extractName(message: string): string {
+    const patterns = [
+      /namaku\s+(\w+)/i,
+      /nama\s+saya\s+(\w+)/i, 
+      /my name is\s+(\w+)/i,
+      /panggil\s+(\w+)/i,
+      /call me\s+(\w+)/i,
+      /aku\s+(\w+)/i,
+      /saya\s+(\w+)/i,
+      /i'm\s+(\w+)/i,
+      /i am\s+(\w+)/i
+    ];
+    
+    for (const pattern of patterns) {
+      const match = message.match(pattern);
+      if (match) {
+        return match[1].trim();
+      }
+    }
+    return '';
+  }
+
+  static extractCountry(message: string): string {
+    // Dynamic country detection - cari kata negara dalam berbagai bahasa
+    const countryPatterns = [
+      /\b(from|dari|asli|origin)\s+(\w+)/i,
+      /\b(live in|tinggal di|stay in)\s+(\w+)/i,
+      /\b(born in|lahir di)\s+(\w+)/i,
+      /\b(\w+)\s+(citizen|warga|penduduk)/i
+    ];
+    
+    for (const pattern of countryPatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        // Ambil kata setelah preposition
+        const country = match[2] || match[1];
+        if (country && country.length > 2) { // Minimal 3 karakter
+          return country.toLowerCase();
+        }
+      }
+    }
+    
+    // Fallback: cari nama negara umum dalam pesan
+    const commonCountries = [
+      'indonesia', 'malaysia', 'singapore', 'vietnam', 'thailand',
+      'japan', 'korea', 'china', 'taiwan', 'india',
+      'usa', 'america', 'canada', 'uk', 'england', 'germany', 'france', 'spain', 'italy',
+      'australia', 'new zealand', 'brazil', 'mexico', 'russia'
+    ];
+    
+    const lowerMessage = message.toLowerCase();
+    for (const country of commonCountries) {
+      if (lowerMessage.includes(country)) {
+        return country;
+      }
+    }
+    
+    return '';
+  }
+
+  static shouldUpdateMemory(userMessage: string, aikoData: AikoAccount): boolean {
+    const knowsName = (aikoData.memoryFlags & 1) !== 0;
+    const knowsCountry = (aikoData.memoryFlags & 2) !== 0;
+    
+    const nameFound = !knowsName && this.extractName(userMessage);
+    const countryFound = !knowsCountry && this.extractCountry(userMessage);
+    
+    return nameFound || countryFound;
+  }
+
+  static calculateMemoryFlags(userMessage: string, currentFlags: number): number {
+    let flags = currentFlags;
+    
+    if (this.extractName(userMessage)) {
+      flags |= 1; // SET KNOWS_NAME bit
+    }
+    
+    if (this.extractCountry(userMessage)) {
+      flags |= 2; // SET KNOWS_COUNTRY bit  
+    }
+    
+    return flags;
+  }
+}
+
 export default function ChatPage() {
   const wallet = useWallet();
   const { isConnected, address: walletAddress, provider, connectWallet, publicKey } = wallet;
@@ -24,6 +111,27 @@ export default function ChatPage() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ✅ FIXED: Auto-scroll tanpa condition
+  useEffect(() => {
+    // SCROLL LANGSUNG KE BOTTOM TANPA CONDITION
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end'
+        });
+      }
+    };
+
+    // Scroll immediately
+    scrollToBottom();
+    
+    // Scroll lagi setelah render selesai (safety net)
+    const timer = setTimeout(scrollToBottom, 100);
+    
+    return () => clearTimeout(timer);
+  }, [messages]);
 
   // PERBAIKAN: useEffect untuk load AIKO data
   useEffect(() => {
@@ -44,25 +152,6 @@ export default function ChatPage() {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
-
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      const container = messagesEndRef.current.parentElement;
-      if (container) {
-        // Scroll hanya jika user sudah dekat bottom
-        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-        
-        if (isNearBottom) {
-          requestAnimationFrame(() => {
-            messagesEndRef.current?.scrollIntoView({ 
-              behavior: 'smooth',
-              block: 'end'
-            });
-          });
-        }
-      }
-    }
-  }, [messages]);
 
   // PERBAIKAN: loadAikoData function
   const loadAikoData = async () => {
@@ -90,12 +179,20 @@ export default function ChatPage() {
       if (data) {
         setAikoData(data);
         if (messages.length === 0) {
-          const daysSince = 0;
-          addAikoMessage(
-            `Welcome back! 💕 We've been friends for ${daysSince} days! I missed you so much!`,
-            'excited',
-            '🎉'
-          );
+          // Personalized welcome back message berdasarkan memory
+          const knowsName = (data.memoryFlags & 1) !== 0;
+          const knowsCountry = (data.memoryFlags & 2) !== 0;
+          
+          let welcomeMessage = "Welcome back! 💕 I missed you so much!";
+          if (knowsName && knowsCountry) {
+            welcomeMessage = `Welcome back, ${data.userName}! 💕 So great to see my friend from ${data.userCountry} again!`;
+          } else if (knowsName) {
+            welcomeMessage = `Hi ${data.userName}! 🌸 So happy you're back!`;
+          } else if (knowsCountry) {
+            welcomeMessage = `Welcome back! 🌟 So nice to see someone from ${data.userCountry} again!`;
+          }
+          
+          addAikoMessage(welcomeMessage, 'excited', '🎉');
         }
       } else {
         // Data tidak ditemukan, user baru
@@ -172,7 +269,7 @@ export default function ChatPage() {
       text,
       sender: 'aiko',
       timestamp: Date.now(),
-      emotion, // ← Sekarang type match
+      emotion,
       emoji
     };
     addMessage(newMessage);
@@ -193,7 +290,7 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // PERBAIKAN: handleSend function - fix type mismatch dengan AIKOData yang benar
+  // ✅ UPDATED: handleSend function dengan Memory System
   const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
@@ -230,23 +327,44 @@ export default function ChatPage() {
         if (aikoData.level < updatedAiko.level) {
           showNotification(`🎉 Level Up! Kamu sekarang Level ${updatedAiko.level}!`);
         }
-        setAikoData(updatedAiko);
 
-        // Prepare data untuk AI - PERBAIKAN: Sesuaikan dengan AIKOData interface
+        // ✅ NEW: Memory System Update
+        if (MemoryService.shouldUpdateMemory(userMessage, updatedAiko)) {
+          const newName = MemoryService.extractName(userMessage) || updatedAiko.userName;
+          const newCountry = MemoryService.extractCountry(userMessage) || updatedAiko.userCountry;
+          const newFlags = MemoryService.calculateMemoryFlags(userMessage, updatedAiko.memoryFlags);
+          
+          try {
+            await solanaService.updateMemory(walletContext, newName, newCountry, newFlags);
+            console.log("🧠 Memory updated!");
+            
+            // Reload data untuk dapat data terbaru
+            const refreshedData = await solanaService.getAIKO(walletContext);
+            if (refreshedData) {
+              setAikoData(refreshedData);
+            }
+          } catch (memoryError) {
+            console.log("Memory update skipped:", memoryError);
+          }
+        } else {
+          setAikoData(updatedAiko);
+        }
+
+        // Prepare data untuk AI
         const historyForAI: DeepSeekMessage[] = messages.slice(-10).map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text
         }));
 
-        // PERBAIKAN: Convert data blockchain ke format AIKOData yang diharapkan
+        // Convert data blockchain ke format AIKOData yang diharapkan
         const aikoDataForAI = {
-          owner: updatedAiko.owner.toBase58(), // Convert PublicKey to string
+          owner: updatedAiko.owner.toBase58(),
           level: updatedAiko.level,
           xp: Number(updatedAiko.xp.toString()),
           total_interactions: Number(updatedAiko.totalInteractions.toString()),
-          last_interaction: Math.floor(Number(updatedAiko.lastInteraction.toString()) / 1000), // Convert to seconds
+          last_interaction: Math.floor(Number(updatedAiko.lastInteraction.toString()) / 1000),
           streak: Number(updatedAiko.streak.toString()),
-          birthday: Math.floor(Date.now() / 1000), // Default timestamp untuk sekarang
+          birthday: Math.floor(Date.now() / 1000),
           evolution_stage: getEvolutionStage(updatedAiko.level) as 'egg' | 'hatchling' | 'companion' | 'soulmate'
         };
 
@@ -261,7 +379,7 @@ export default function ChatPage() {
         
         addAikoMessage(
           response.text, 
-          response.emotion as 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad', // ← Type assertion
+          response.emotion as 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad',
           response.emoji
         );
       }
@@ -402,6 +520,8 @@ export default function ChatPage() {
   const currentStage = getEvolutionStage(aikoData.level);
   const currentXP = Number(aikoData.xp.toString());
   const currentLevel = aikoData.level;
+  const knowsName = (aikoData.memoryFlags & 1) !== 0;
+  const knowsCountry = (aikoData.memoryFlags & 2) !== 0;
   
   return (
     <div className="relative flex h-screen overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
@@ -503,12 +623,20 @@ export default function ChatPage() {
                 </div>
               </div>
 
-              {/* Info Cards */}
+              {/* Info Cards dengan Memory Data */}
               <div className="space-y-3">
-                <div className="glass-card rounded-xl p-4">
-                  <div className="text-gray-400 text-xs mb-1">Birthday</div>
-                  <span className="text-white font-mono text-sm">02/11/2025</span> 
-                </div>
+                {knowsName && (
+                  <div className="glass-card rounded-xl p-4">
+                    <div className="text-gray-400 text-xs mb-1">Friend's Name</div>
+                    <span className="text-white font-mono text-sm">{aikoData.userName}</span> 
+                  </div>
+                )}
+                {knowsCountry && (
+                  <div className="glass-card rounded-xl p-4">
+                    <div className="text-gray-400 text-xs mb-1">From</div>
+                    <span className="text-white font-mono text-sm capitalize">{aikoData.userCountry}</span> 
+                  </div>
+                )}
                 <div className="glass-card rounded-xl p-4">
                   <div className="text-gray-400 text-xs mb-1">Owner</div>
                   <span className="text-white font-mono text-xs break-all">
