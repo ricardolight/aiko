@@ -482,7 +482,7 @@ function HomeContent({ walletConnected }: { walletConnected: boolean }) {
       <footer className="container mx-auto px-6 py-12 border-t border-white/10">
         <div className="text-center space-y-4">
           <p className="text-gray-400">
-            Built for CARV Community Hackathon 2025 - AI x SVM Track
+            Built for CARV Community Hackathon 2025
           </p>
           <div className="flex justify-center gap-4 text-sm text-gray-500">
             <span>On-Chain AI Companion</span>
