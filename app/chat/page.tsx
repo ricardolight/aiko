@@ -166,8 +166,8 @@ export default function ChatPage() {
     try {
       console.log("Loading AIKO data for:", publicKey.toBase58());
       
-      // Pastikan kita passing wallet context yang lengkap
-      const walletContext = {
+      // PERBAIKAN: Pastikan semua property WalletContextState ada
+      const walletContext: WalletContextState = {
         publicKey,
         isConnected,
         provider,
@@ -176,7 +176,11 @@ export default function ChatPage() {
         address: publicKey.toBase58(),
         balance: wallet.balance,
         signTransaction: wallet.signTransaction,
-        signAllTransactions: wallet.signAllTransactions
+        signAllTransactions: wallet.signAllTransactions,
+        // TAMBAH property yang missing
+        isConnecting: wallet.isConnecting,
+        connectionError: wallet.connectionError,
+        retryConnection: wallet.retryConnection
       };
 
       const data = await solanaService.getAIKO(walletContext);
@@ -223,7 +227,7 @@ export default function ChatPage() {
     setLoading(true);
     
     try {
-      const walletContext = {
+      const walletContext: WalletContextState = {
         publicKey,
         isConnected,
         provider,
@@ -232,7 +236,11 @@ export default function ChatPage() {
         address: publicKey.toBase58(),
         balance: wallet.balance,
         signTransaction: wallet.signTransaction,
-        signAllTransactions: wallet.signAllTransactions
+        signAllTransactions: wallet.signAllTransactions,
+        // TAMBAH property yang missing
+        isConnecting: wallet.isConnecting,
+        connectionError: wallet.connectionError,
+        retryConnection: wallet.retryConnection
       };
 
       console.log("Initializing AIKO account...");
@@ -305,8 +313,8 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      // Prepare wallet context
-      const walletContext = {
+      // Prepare wallet context dengan semua property yang required
+      const walletContext: WalletContextState = {
         publicKey,
         isConnected,
         provider,
@@ -315,7 +323,11 @@ export default function ChatPage() {
         address: publicKey.toBase58(),
         balance: wallet.balance,
         signTransaction: wallet.signTransaction,
-        signAllTransactions: wallet.signAllTransactions
+        signAllTransactions: wallet.signAllTransactions,
+        // TAMBAH property yang missing
+        isConnecting: wallet.isConnecting,
+        connectionError: wallet.connectionError,
+        retryConnection: wallet.retryConnection
       };
 
       console.log("Sending interact transaction...");
