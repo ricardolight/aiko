@@ -103,14 +103,6 @@ export default function Home() {
     }
   };
 
-  // ✅ FUNCTION REAL: Connect wallet dan langsung ke chat
-  const handleGetStarted = () => {
-    if (!wallet.isConnected) {
-      wallet.connectWallet();
-    }
-    // Auto redirect ke chat setelah connect (handled di WalletButton)
-  };
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
       {/* Animated Background */}
@@ -197,10 +189,7 @@ export default function Home() {
 
         {/* Main Content */}
         {activeTab === 'home' ? (
-          <HomeContent 
-            onGetStarted={handleGetStarted}
-            walletConnected={wallet.isConnected}
-          />
+          <HomeContent walletConnected={wallet.isConnected} />
         ) : (
           <DashboardContent 
             globalStats={globalStats}
@@ -216,7 +205,7 @@ export default function Home() {
 }
 
 // Home Content Component
-function HomeContent({ onGetStarted, walletConnected }: { onGetStarted: () => void, walletConnected: boolean }) {
+function HomeContent({ walletConnected }: { walletConnected: boolean }) {
   return (
     <>
       {/* Hero Section */}
@@ -280,8 +269,8 @@ function HomeContent({ onGetStarted, walletConnected }: { onGetStarted: () => vo
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button
-                onClick={onGetStarted}
+              <Link
+                href="/chat"
                 className="group relative w-full sm:w-auto"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition-opacity animate-glow" />
@@ -293,16 +282,16 @@ function HomeContent({ onGetStarted, walletConnected }: { onGetStarted: () => vo
                     </svg>
                   </span>
                 </div>
-              </button>
+              </Link>
 
-              <Link
-                href="/dashboard"
+              <button
+                onClick={() => window.location.href = '#dashboard'}
                 className="group w-full sm:w-auto glass px-10 py-5 rounded-2xl border-2 border-purple-500/30 hover:border-purple-500/60 transition-all"
               >
                 <span className="text-xl font-semibold text-purple-200 group-hover:text-white transition-colors flex items-center gap-2">
                   📊 Live Dashboard
                 </span>
-              </Link>
+              </button>
             </div>  
           </div>
         </div>
@@ -442,7 +431,6 @@ function HomeContent({ onGetStarted, walletConnected }: { onGetStarted: () => vo
           <div className="flex flex-wrap justify-center gap-4">
             {[
               { name: 'CARV SVM', desc: 'Blockchain Infrastructure' },
-              { name: 'Solana Program', desc: 'On-Chain Logic' },
               { name: 'DeepSeek AI', desc: 'AI Intelligence' },
               { name: 'Next.js 15', desc: 'Frontend Framework' },
               { name: 'TypeScript', desc: 'Type Safety' },
@@ -472,20 +460,20 @@ function HomeContent({ onGetStarted, walletConnected }: { onGetStarted: () => vo
             <p className="text-xl text-gray-300 max-w-2xl mx-auto">
               Join 800+ users already growing with their AI companions on CARV SVM blockchain.
             </p>
-            <button
-              onClick={onGetStarted}
+            <Link
+              href="/chat"
               className="group inline-block relative"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition-opacity animate-glow" />
               <div className="relative glass-card px-12 py-6 rounded-2xl">
                 <span className="text-2xl font-bold text-white flex items-center gap-3">
-                  <span>Start On Blockchain</span>
+                  <span>Enter Chat</span>
                   <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </span>
               </div>
-            </button>
+            </Link>
           </div>
         </div>
       </section>
@@ -524,7 +512,7 @@ function DashboardContent({
   onRefresh: () => void;
 }) {
   return (
-    <section className="container mx-auto px-6 pt-32 pb-20">
+    <section id="dashboard" className="container mx-auto px-6 pt-32 pb-20">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
