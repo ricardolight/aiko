@@ -8,7 +8,7 @@ import { deepseekService } from '@/lib/deepseek';
 import { useChatHistory, Message, DeepSeekMessage } from '@/app/hooks/useChatHistory';
 import { useWallet } from '@/app/context/WalletProvider';
 
-// Memory Service untuk extract info dari chat - GLOBAL VERSION
+// Memory Service (tetap sama)
 class MemoryService {
   static extractName(message: string): string {
     const patterns = [
@@ -33,26 +33,23 @@ class MemoryService {
   }
 
   static extractCountry(message: string): string {
-    // Dynamic country detection - cari kata negara dalam berbagai bahasa
-    const patterns = [ // ✅ PERBAIKAN: ganti countryPatterns jadi patterns
+    const patterns = [
       /\b(from|dari|asli|origin)\s+(\w+)/i,
       /\b(live in|tinggal di|stay in)\s+(\w+)/i,
       /\b(born in|lahir di)\s+(\w+)/i,
       /\b(\w+)\s+(citizen|warga|penduduk)/i
     ];
     
-    for (const pattern of patterns) { // ✅ SEKARANG patterns ADA
+    for (const pattern of patterns) {
       const match = message.match(pattern);
       if (match) {
-        // Ambil kata setelah preposition
         const country = match[2] || match[1];
-        if (country && country.length > 2) { // Minimal 3 karakter
+        if (country && country.length > 2) {
           return country.toLowerCase();
         }
       }
     }
     
-    // Fallback: cari nama negara umum dalam pesan
     const commonCountries = [
       'indonesia', 'malaysia', 'singapore', 'vietnam', 'thailand',
       'japan', 'korea', 'china', 'taiwan', 'india',
@@ -74,7 +71,6 @@ class MemoryService {
     const knowsName = (aikoData.memoryFlags & 1) !== 0;
     const knowsCountry = (aikoData.memoryFlags & 2) !== 0;
     
-    // FIX: Properly convert to boolean
     const nameFound = !knowsName && this.extractName(userMessage).length > 0;
     const countryFound = !knowsCountry && this.extractCountry(userMessage).length > 0;
     
@@ -87,13 +83,12 @@ class MemoryService {
     const name = this.extractName(userMessage);
     const country = this.extractCountry(userMessage);
     
-    // FIX: Check length instead of truthiness
     if (name.length > 0) {
-      flags |= 1; // SET KNOWS_NAME bit
+      flags |= 1;
     }
     
     if (country.length > 0) {
-      flags |= 2; // SET KNOWS_COUNTRY bit  
+      flags |= 2;  
     }
     
     return flags;
@@ -116,23 +111,24 @@ export default function ChatPage() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // ✅ FIX: Optimized scroll dengan useCallback
-  const scrollToBottom = useCallback(() => {
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  
+  // ✅ FIX: Scroll yang lebih agresif
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ 
-        behavior: 'smooth',
+        behavior,
         block: 'end'
       });
     }
   }, []);
 
-  // ✅ FIX: Scroll hanya ketika ada message baru dari AIKO atau user
+  // ✅ FIX: Scroll immediately ketika ada message baru
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
-    if (lastMessage && (lastMessage.sender === 'aiko' || lastMessage.sender === 'user')) {
-      const timer = setTimeout(scrollToBottom, 100);
-      return () => clearTimeout(timer);
+    if (lastMessage) {
+      // Scroll immediately tanpa delay
+      scrollToBottom('auto');
     }
   }, [messages, scrollToBottom]);
 
@@ -141,7 +137,6 @@ export default function ChatPage() {
     if (isConnected && publicKey && provider) {
       loadAikoData();
     } else {
-      // Reset state jika wallet disconnected
       setAikoData(null);
       setIsInitializing(false);
     }
@@ -164,13 +159,11 @@ export default function ChatPage() {
     try {
       console.log("Loading AIKO data for:", publicKey.toBase58());
       
-      // ✅ PERBAIKAN: Gunakan wallet object langsung
       const data = await solanaService.getAIKO(wallet);
       
       if (data) {
         setAikoData(data);
         if (messages.length === 0) {
-          // Personalized welcome back message berdasarkan memory
           const knowsName = (data.memoryFlags & 1) !== 0;
           const knowsCountry = (data.memoryFlags & 2) !== 0;
           
@@ -186,13 +179,11 @@ export default function ChatPage() {
           addAikoMessage(welcomeMessage, 'excited', '🎉');
         }
       } else {
-        // Data tidak ditemukan, user baru
         console.log("No AIKO account found, user needs to initialize");
         setIsInitializing(true);
       }
     } catch (error: any) {
       console.error('Gagal memuat AIKO:', error);
-      // Handle specific error cases
       if (error.message?.includes('Account does not exist')) {
         setIsInitializing(true);
       }
@@ -210,13 +201,10 @@ export default function ChatPage() {
     
     try {
       console.log("Initializing AIKO account...");
-      // ✅ PERBAIKAN: Gunakan wallet object langsung
       await solanaService.initialize(wallet);
       
-      // Tunggu sebentar sebelum fetch data baru
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Load data AIKO yang baru
       const newData = await solanaService.getAIKO(wallet);
       if (newData) {
         setAikoData(newData);
@@ -270,7 +258,7 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // ✅ FIX: Optimized handleSend untuk seamless experience
+  // ✅ FIX: handleSend yang lebih optimized
   const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
@@ -282,25 +270,23 @@ export default function ChatPage() {
     try {
       console.log("Sending interact transaction...");
       
-      // ✅ FIX: Simpan data sebelumnya untuk consistency
+      // ✅ FIX: Simpan data sebelumnya
       const previousAikoData = { ...aikoData };
       
-      // ✅ FIX: Kirim transaction tapi jangan tunggu blockchain update untuk AI response
-      const txSignature = await solanaService.interact(wallet);
-      console.log("Transaksi terkirim:", txSignature);
-
-      // ✅ FIX: Get AI response immediately tanpa menunggu blockchain update
+      // ✅ FIX: Kirim transaction TANPA menunggu response untuk AI
+      const txPromise = solanaService.interact(wallet);
+      
+      // ✅ FIX: Langsung prepare AI response tanpa menunggu blockchain
       const historyForAI: DeepSeekMessage[] = messages.slice(-10).map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'assistant',
         content: msg.text
       }));
 
-      // ✅ FIX: Use previous data untuk AI response dengan manual increment
       const aikoDataForAI = {
         owner: previousAikoData.owner.toBase58(),
         level: previousAikoData.level,
         xp: Number(previousAikoData.xp.toString()),
-        total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1, // Manual increment
+        total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
         last_interaction: Math.floor(Date.now() / 1000),
         streak: Number(previousAikoData.streak.toString()),
         birthday: Math.floor(Date.now() / 1000),
@@ -309,31 +295,32 @@ export default function ChatPage() {
 
       console.log("Sending to DeepSeek:", aikoDataForAI);
 
-      // ✅ FIX: Get AI response FIRST sebelum blockchain operations
-      const response = await deepseekService.chat(
-        userMessage, 
-        aikoDataForAI, 
-        historyForAI 
-      );
+      // ✅ FIX: Get AI response PARALLEL dengan blockchain transaction
+      const [response, txSignature] = await Promise.all([
+        deepseekService.chat(userMessage, aikoDataForAI, historyForAI),
+        txPromise
+      ]);
       
-      // ✅ FIX: Add AIKO response immediately (user langsung melihat balasan)
+      console.log("Transaksi terkirim:", txSignature);
+
+      // ✅ FIX: Add AIKO response immediately
       addAikoMessage(
         response.text, 
         response.emotion as 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad',
         response.emoji
       );
 
-      // ✅ FIX: Blockchain updates dilakukan di background tanpa blocking UI
+      // ✅ FIX: Background updates dengan DEBOUNCE untuk prevent multiple re-renders
       setTimeout(async () => {
         try {
           const updatedAiko = await solanaService.getAIKO(wallet);
           if (updatedAiko) {
-            // Cek apakah ada level up
+            // Cek level up
             if (previousAikoData.level < updatedAiko.level) {
               showNotification(`🎉 Level Up! Kamu sekarang Level ${updatedAiko.level}!`);
             }
 
-            // ✅ Memory System Update
+            // Memory System Update
             if (MemoryService.shouldUpdateMemory(userMessage, updatedAiko)) {
               const newName = MemoryService.extractName(userMessage) || updatedAiko.userName;
               const newCountry = MemoryService.extractCountry(userMessage) || updatedAiko.userCountry;
@@ -343,14 +330,13 @@ export default function ChatPage() {
                 await solanaService.updateMemory(wallet, newName, newCountry, newFlags);
                 console.log("🧠 Memory updated!");
                 
-                // Reload data untuk dapat data terbaru
                 const refreshedData = await solanaService.getAIKO(wallet);
                 if (refreshedData) {
                   setAikoData(refreshedData);
                 }
               } catch (memoryError) {
                 console.log("Memory update skipped:", memoryError);
-                setAikoData(updatedAiko); // Fallback ke data tanpa memory update
+                setAikoData(updatedAiko);
               }
             } else {
               setAikoData(updatedAiko);
@@ -358,9 +344,8 @@ export default function ChatPage() {
           }
         } catch (error) {
           console.error("Background update failed:", error);
-          // Tidak perlu handle error karena UI sudah update
         }
-      }, 0);
+      }, 500); // Debounce 500ms
 
     } catch (error: any) {
       console.error('Failed to send message:', error);
@@ -371,11 +356,14 @@ export default function ChatPage() {
       );
     } finally {
       setLoading(false);
-      inputRef.current?.focus();
+      // ✅ FIX: Focus input setelah semuanya selesai
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   };
 
-  // Helper functions tetap sama
+  // Helper functions
   const getEvolutionStage = (level: number): string => {
     if (level >= 20) return 'soulmate';
     if (level >= 10) return 'companion';
@@ -714,7 +702,10 @@ export default function ChatPage() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-8 space-y-6">
+        <div 
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto px-6 py-8 space-y-6"
+        >
           <div className="max-w-4xl mx-auto space-y-6">
             <AnimatePresence>
               {messages.map((message) => (
@@ -797,7 +788,7 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Input Area */}
+       {/* Input Area */}
         <div className="glass-card border-t border-white/10 px-6 py-6">
           <div className="max-w-4xl mx-auto">
             <div className="flex gap-3">
