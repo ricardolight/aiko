@@ -31,6 +31,7 @@ export default function Home() {
   const [topUsers, setTopUsers] = useState<TopUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
   
   const wallet = useWallet();
 
@@ -38,13 +39,26 @@ export default function Home() {
     setIsLoaded(true);
     loadDashboardData();
     
+    // Detect mobile device
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
+      if (!isMobile) {
+        setMousePosition({ x: e.clientX, y: e.clientY });
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, [isMobile]);
 
   // ✅ FUNCTION REAL: Load data dari blockchain
   const loadDashboardData = async () => {
@@ -52,8 +66,7 @@ export default function Home() {
       setIsLoading(true);
       console.log("🔄 Loading real dashboard data from SVM...");
 
-      // 1. Coba ambil data global dari program (ini contoh - sesuaikan dengan program kamu)
-      // Untuk hackathon, kita bisa simulate data real dari multiple interactions
+      // Data simulation
       const mockStats: GlobalStats = {
         totalUsers: 847,
         totalInteractions: 32456,
@@ -62,7 +75,6 @@ export default function Home() {
         activeToday: 189
       };
 
-      // 2. Top users dari transaction history (real data simulation)
       const mockTopUsers: TopUser[] = [
         { rank: 1, address: 'AiK0...8j2H', level: 23, streak: 42, interactions: 456 },
         { rank: 2, address: 'B7xP...3mN9', level: 21, streak: 38, interactions: 389 },
@@ -71,7 +83,6 @@ export default function Home() {
         { rank: 5, address: 'E8mT...6rW4', level: 17, streak: 33, interactions: 298 }
       ];
 
-      // 3. Recent activities simulation dari blockchain
       const mockActivities = [
         { user: 'F3gH...7tY5', action: 'level_up', level: 12, timestamp: Date.now() - 100000 },
         { user: 'G9jK...1uI6', action: 'streak_updated', streak: 15, timestamp: Date.now() - 200000 },
@@ -79,7 +90,6 @@ export default function Home() {
         { user: 'I1nB...2aQ8', action: 'interaction', xp: 10, timestamp: Date.now() - 400000 }
       ];
 
-      // Simulate loading delay untuk effect
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       setGlobalStats(mockStats);
@@ -90,7 +100,6 @@ export default function Home() {
 
     } catch (error) {
       console.error('❌ Failed to load dashboard data:', error);
-      // Fallback ke minimal data
       setGlobalStats({
         totalUsers: 0,
         totalInteractions: 0,
@@ -105,10 +114,14 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
-      {/* Animated Background */}
+      {/* Animated Background - Optimized for mobile */}
       <div className="absolute inset-0 overflow-hidden">
         <div 
-          className="absolute w-[500px] h-[500px] rounded-full bg-purple-600/20 blur-[100px] animate-float"
+          className={`absolute rounded-full bg-purple-600/20 ${
+            isMobile 
+              ? 'w-[200px] h-[200px] blur-[40px]' 
+              : 'w-[500px] h-[500px] blur-[100px] animate-float'
+          }`}
           style={{
             top: '10%',
             left: '20%',
@@ -117,7 +130,11 @@ export default function Home() {
           }}
         />
         <div 
-          className="absolute w-[400px] h-[400px] rounded-full bg-pink-600/20 blur-[100px] animate-float"
+          className={`absolute rounded-full bg-pink-600/20 ${
+            isMobile
+              ? 'w-[150px] h-[150px] blur-[30px]'
+              : 'w-[400px] h-[400px] blur-[100px] animate-float'
+          }`}
           style={{
             bottom: '20%',
             right: '15%',
@@ -126,7 +143,11 @@ export default function Home() {
           }}
         />
         <div 
-          className="absolute w-[300px] h-[300px] rounded-full bg-purple-500/15 blur-[80px] animate-float"
+          className={`absolute rounded-full bg-purple-500/15 ${
+            isMobile
+              ? 'w-[100px] h-[100px] blur-[20px]'
+              : 'w-[300px] h-[300px] blur-[80px] animate-float'
+          }`}
           style={{
             top: '50%',
             left: '50%',
@@ -135,14 +156,16 @@ export default function Home() {
           }}
         />
         
-        {/* Cursor Glow Effect */}
-        <div 
-          className="pointer-events-none fixed w-96 h-96 rounded-full bg-gradient-to-r from-purple-600/10 to-pink-600/10 blur-[100px] transition-all duration-300"
-          style={{
-            left: mousePosition.x - 192,
-            top: mousePosition.y - 192,
-          }}
-        />
+        {/* Cursor Glow Effect - Disabled on mobile */}
+        {!isMobile && (
+          <div 
+            className="pointer-events-none fixed w-96 h-96 rounded-full bg-gradient-to-r from-purple-600/10 to-pink-600/10 blur-[100px] transition-all duration-300"
+            style={{
+              left: mousePosition.x - 192,
+              top: mousePosition.y - 192,
+            }}
+          />
+        )}
       </div>
 
       <div className={`relative z-10 transition-all duration-1000 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
@@ -153,12 +176,20 @@ export default function Home() {
               {/* Logo */}
               <div className="flex items-center gap-3 group">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity animate-glow" />
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xl sm:text-2xl animate-float shadow-lg">
+                  <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full ${
+                    isMobile ? 'blur-md' : 'blur-lg'
+                  } opacity-0 group-hover:opacity-100 transition-opacity ${isMobile ? '' : 'animate-glow'}`} />
+                  <div className={`relative rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center ${
+                    isMobile 
+                      ? 'w-8 h-8 text-lg' 
+                      : 'w-10 h-10 sm:w-12 sm:h-12 text-xl sm:text-2xl animate-float'
+                  } shadow-lg`}>
                     🌸
                   </div>
                 </div>
-                <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent animate-gradient">
+                <span className={`font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent ${
+                  isMobile ? 'text-lg' : 'text-xl sm:text-2xl animate-gradient'
+                }`}>
                   AIKO
                 </span>
               </div>
@@ -189,7 +220,7 @@ export default function Home() {
 
         {/* Main Content */}
         {activeTab === 'home' ? (
-          <HomeContent walletConnected={wallet.isConnected} setActiveTab={setActiveTab} />
+          <HomeContent walletConnected={wallet.isConnected} setActiveTab={setActiveTab} isMobile={isMobile} />
         ) : (
           <DashboardContent 
             globalStats={globalStats}
@@ -197,6 +228,7 @@ export default function Home() {
             recentActivities={recentActivities}
             isLoading={isLoading}
             onRefresh={loadDashboardData}
+            isMobile={isMobile}
           />
         )}
       </div>
@@ -204,38 +236,48 @@ export default function Home() {
   );
 }
 
-// Home Content Component
+// Home Content Component - Optimized for mobile
 function HomeContent({ 
   walletConnected, 
-  setActiveTab 
+  setActiveTab,
+  isMobile 
 }: { 
   walletConnected: boolean;
   setActiveTab: (tab: string) => void;
+  isMobile: boolean;
 }) {
   return (
     <>
-      {/* Hero Section */}
+      {/* Hero Section - Optimized for mobile */}
       <section className="container mx-auto px-6 pt-32 pb-20">
         <div className="max-w-6xl mx-auto text-center space-y-12">
           {/* Main Hero */}
           <div className="space-y-8">
             <div className="relative inline-block">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full blur-3xl opacity-40 animate-glow" />
-              <div className="relative text-9xl animate-float">
+              <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full ${
+                isMobile ? 'blur-xl' : 'blur-3xl'
+              } opacity-40 ${isMobile ? '' : 'animate-glow'}`} />
+              <div className={`relative ${isMobile ? 'text-6xl' : 'text-9xl'} ${isMobile ? '' : 'animate-float'}`}>
                 🌸
               </div>
             </div>
 
             <div className="space-y-4">
-              <h1 className="text-7xl md:text-9xl font-bold tracking-tight">
+              <h1 className={`font-bold tracking-tight ${
+                isMobile ? 'text-5xl' : 'text-7xl md:text-9xl'
+              }`}>
                 <span className="block bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent animate-gradient text-glow">
                   AIKO
                 </span>
               </h1>
-              <p className="text-2xl md:text-4xl text-purple-200 font-light">
+              <p className={`text-purple-200 font-light ${
+                isMobile ? 'text-xl' : 'text-2xl md:text-4xl'
+              }`}>
                 Your Evolving AI Companion on CARV SVM
               </p>
-              <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+              <p className={`text-gray-400 max-w-2xl mx-auto leading-relaxed ${
+                isMobile ? 'text-base' : 'text-lg md:text-xl'
+              }`}>
                 The first AI companion that grows with you on blockchain. 
                 Every interaction is stored on CARV SVM, creating a permanent digital friendship.
               </p>
@@ -244,29 +286,33 @@ function HomeContent({
             {/* Stats Counter */}
             <div className="flex items-center justify-center gap-8 my-8">
               <div className="text-center">
-                <div className="text-3xl font-bold text-purple-400">10+</div>
+                <div className={`font-bold text-purple-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>10+</div>
                 <div className="text-gray-400">XP Per Chat</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-pink-400">4</div>
+                <div className={`font-bold text-pink-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>4</div>
                 <div className="text-gray-400">Evolution Stages</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-purple-400">∞</div>
+                <div className={`font-bold text-purple-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>∞</div>
                 <div className="text-gray-400">Memory Growth</div>
               </div>
             </div>
 
-            {/* Evolution Preview */}
+            {/* Evolution Preview - Reduced animation on mobile */}
             <div className="flex items-center justify-center gap-4 md:gap-8 py-8">
               {['🥚', '🐣', '🌸', '✨'].map((emoji, i) => (
                 <div
                   key={i}
                   className="group relative"
-                  style={{ animationDelay: `${i * 0.2}s` }}
+                  style={{ animationDelay: isMobile ? '0s' : `${i * 0.2}s` }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative text-5xl md:text-7xl transform group-hover:scale-125 transition-all duration-300 animate-float">
+                  <div className={`relative transform group-hover:scale-125 transition-all duration-300 ${
+                    isMobile 
+                      ? 'text-4xl' 
+                      : 'text-5xl md:text-7xl animate-float'
+                  }`}>
                     {emoji}
                   </div>
                 </div>
@@ -279,7 +325,9 @@ function HomeContent({
                 href="/chat"
                 className="group relative w-full sm:w-auto"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition-opacity animate-glow" />
+                <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl ${
+                  isMobile ? 'blur-lg' : 'blur-xl'
+                } opacity-50 group-hover:opacity-100 transition-opacity ${isMobile ? '' : 'animate-glow'}`} />
                 <div className="relative glass-card px-10 py-5 rounded-2xl">
                   <span className="text-xl font-bold text-white flex items-center justify-center gap-3">
                     <span>{walletConnected ? '💬 Enter Chat' : '🚀 Get Started'}</span>
@@ -303,10 +351,12 @@ function HomeContent({
         </div>
       </section>
 
-      {/* Bento Grid Features */}
+      {/* Bento Grid Features - Simplified for mobile */}
       <section id="features" className="container mx-auto px-6 py-20">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
+          <h2 className={`font-bold text-center mb-16 ${
+            isMobile ? 'text-3xl' : 'text-4xl md:text-5xl'
+          }`}>
             <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               Why AIKO Stands Out?
             </span>
@@ -314,12 +364,16 @@ function HomeContent({
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {/* Large Feature */}
-            <div className="md:col-span-8 group interactive-card glass-card rounded-3xl p-8 md:p-10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-600/20 to-transparent rounded-full blur-3xl" />
+            <div className="md:col-span-8 group interactive-card glass-card rounded-3xl p-6 md:p-10 relative overflow-hidden">
+              {!isMobile && (
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-600/20 to-transparent rounded-full blur-3xl" />
+              )}
               <div className="relative z-10">
-                <div className="text-6xl mb-6 animate-float">⛓️</div>
-                <h3 className="text-3xl font-bold text-white mb-4">True Blockchain AI Companion</h3>
-                <p className="text-gray-300 text-lg leading-relaxed mb-6">
+                <div className={`${isMobile ? 'text-5xl' : 'text-6xl'} mb-6 ${isMobile ? '' : 'animate-float'}`}>⛓️</div>
+                <h3 className={`font-bold text-white mb-4 ${
+                  isMobile ? 'text-2xl' : 'text-3xl'
+                }`}>True Blockchain AI Companion</h3>
+                <p className="text-gray-300 leading-relaxed mb-6">
                   Unlike other AI chatbots, AIKO lives on CARV SVM blockchain. Your companion's growth, 
                   memories, and evolution are permanently stored on-chain. No centralized servers, 
                   true digital ownership.
@@ -333,11 +387,15 @@ function HomeContent({
             </div>
 
             {/* Stats Card */}
-            <div className="md:col-span-4 interactive-card glass-card rounded-3xl p-8 relative overflow-hidden">
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-pink-600/20 to-transparent rounded-full blur-2xl" />
+            <div className="md:col-span-4 interactive-card glass-card rounded-3xl p-6 relative overflow-hidden">
+              {!isMobile && (
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-pink-600/20 to-transparent rounded-full blur-2xl" />
+              )}
               <div className="relative z-10">
-                <div className="text-5xl mb-4 animate-float">📊</div>
-                <h3 className="text-2xl font-bold text-white mb-6">Live Network Stats</h3>
+                <div className={`${isMobile ? 'text-4xl' : 'text-5xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>📊</div>
+                <h3 className={`font-bold text-white mb-6 ${
+                  isMobile ? 'text-xl' : 'text-2xl'
+                }`}>Live Network Stats</h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
@@ -362,11 +420,15 @@ function HomeContent({
             </div>
 
             {/* AI Feature */}
-            <div className="md:col-span-6 interactive-card glass-card rounded-3xl p-8 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-br from-purple-600/20 to-transparent rounded-full blur-3xl" />
+            <div className="md:col-span-6 interactive-card glass-card rounded-3xl p-6 relative overflow-hidden">
+              {!isMobile && (
+                <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-br from-purple-600/20 to-transparent rounded-full blur-3xl" />
+              )}
               <div className="relative z-10">
-                <div className="text-5xl mb-4 animate-float">🤖</div>
-                <h3 className="text-2xl font-bold text-white mb-3">Advanced AI + Blockchain</h3>
+                <div className={`${isMobile ? 'text-4xl' : 'text-5xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>🤖</div>
+                <h3 className={`font-bold text-white mb-3 ${
+                  isMobile ? 'text-xl' : 'text-2xl'
+                }`}>Advanced AI + Blockchain</h3>
                 <p className="text-gray-300 leading-relaxed">
                   Powered by DeepSeek AI with on-chain memory system. Your companion remembers your name, 
                   preferences, and grows personality based on your interactions.
@@ -375,11 +437,15 @@ function HomeContent({
             </div>
 
             {/* Rewards Feature */}
-            <div className="md:col-span-6 interactive-card glass-card rounded-3xl p-8 relative overflow-hidden">
-              <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-pink-600/20 to-transparent rounded-full blur-3xl" />
+            <div className="md:col-span-6 interactive-card glass-card rounded-3xl p-6 relative overflow-hidden">
+              {!isMobile && (
+                <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-pink-600/20 to-transparent rounded-full blur-3xl" />
+              )}
               <div className="relative z-10">
-                <div className="text-5xl mb-4 animate-float">🎁</div>
-                <h3 className="text-2xl font-bold text-white mb-3">Real XP & Level System</h3>
+                <div className={`${isMobile ? 'text-4xl' : 'text-5xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>🎁</div>
+                <h3 className={`font-bold text-white mb-3 ${
+                  isMobile ? 'text-xl' : 'text-2xl'
+                }`}>Real XP & Level System</h3>
                 <p className="text-gray-300 leading-relaxed">
                   Earn real XP on blockchain with every interaction. Level up your AIKO from Egg to Soulmate. 
                   Daily streaks and achievements stored permanently.
@@ -390,16 +456,18 @@ function HomeContent({
         </div>
       </section>
 
-      {/* Evolution Timeline */}
+      {/* Evolution Timeline - Reduced animation */}
       <section id="evolution" className="container mx-auto px-6 py-20">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
+          <h2 className={`font-bold text-center mb-16 ${
+            isMobile ? 'text-3xl' : 'text-4xl md:text-5xl'
+          }`}>
             <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               Evolution Journey
             </span>
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-8">
             {[
               { stage: 'Egg', emoji: '🥚', level: '1-4', desc: 'Newborn companion learning basics', color: 'from-yellow-500 to-orange-500' },
               { stage: 'Hatchling', emoji: '🐣', level: '5-9', desc: 'Developing unique personality', color: 'from-pink-500 to-rose-500' },
@@ -408,13 +476,15 @@ function HomeContent({
             ].map((stage, i) => (
               <div
                 key={i}
-                className="group interactive-card glass-card rounded-3xl p-8 text-center relative overflow-hidden"
-                style={{ animationDelay: `${i * 0.1}s` }}
+                className="group interactive-card glass-card rounded-3xl p-6 text-center relative overflow-hidden"
+                style={{ animationDelay: isMobile ? '0s' : `${i * 0.1}s` }}
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${stage.color} opacity-5 group-hover:opacity-10 transition-opacity`} />
                 <div className="relative z-10">
-                  <div className="text-7xl mb-4 animate-float">{stage.emoji}</div>
-                  <h3 className="text-2xl font-bold text-white mb-2">{stage.stage}</h3>
+                  <div className={`${isMobile ? 'text-6xl' : 'text-7xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>{stage.emoji}</div>
+                  <h3 className={`font-bold text-white mb-2 ${
+                    isMobile ? 'text-xl' : 'text-2xl'
+                  }`}>{stage.stage}</h3>
                   <p className="text-purple-300 font-semibold mb-3">Level {stage.level}</p>
                   <p className="text-gray-400 text-sm">{stage.desc}</p>
                 </div>
@@ -427,14 +497,16 @@ function HomeContent({
       {/* Tech Stack */}
       <section id="tech" className="container mx-auto px-6 py-20">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-8">
+          <h2 className={`font-bold mb-8 ${
+            isMobile ? 'text-3xl' : 'text-4xl md:text-5xl'
+          }`}>
             <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               Powered By CARV SVM
             </span>
           </h2>
           <p className="text-gray-400 mb-12">Built entirely on CARV SVM Testnet for true decentralization</p>
 
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-3 md:gap-4">
             {[
               { name: 'CARV SVM', desc: 'Blockchain Infrastructure' },
               { name: 'DeepSeek AI', desc: 'AI Intelligence' },
@@ -444,9 +516,9 @@ function HomeContent({
             ].map((tech, index) => (
               <div
                 key={tech.name}
-                className="group glass-card px-6 py-4 rounded-xl hover:scale-105 transition-all cursor-default text-center min-w-[140px]"
+                className="group glass-card px-4 py-3 md:px-6 md:py-4 rounded-xl hover:scale-105 transition-all cursor-default text-center min-w-[120px] md:min-w-[140px]"
               >
-                <div className="font-semibold text-white mb-1">{tech.name}</div>
+                <div className="font-semibold text-white mb-1 text-sm md:text-base">{tech.name}</div>
                 <div className="text-xs text-gray-400">{tech.desc}</div>
               </div>
             ))}
@@ -456,25 +528,29 @@ function HomeContent({
 
       {/* Final CTA */}
       <section className="container mx-auto px-6 py-20">
-        <div className="max-w-4xl mx-auto glass-card rounded-3xl p-12 md:p-16 text-center relative overflow-hidden">
+        <div className="max-w-4xl mx-auto glass-card rounded-3xl p-8 md:p-16 text-center relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-pink-600/10" />
-          <div className="relative z-10 space-y-8">
-            <div className="text-8xl animate-float">🚀</div>
-            <h2 className="text-4xl md:text-5xl font-bold text-white">
+          <div className="relative z-10 space-y-6 md:space-y-8">
+            <div className={`${isMobile ? 'text-6xl' : 'text-8xl'} ${isMobile ? '' : 'animate-float'}`}>🚀</div>
+            <h2 className={`font-bold text-white ${
+              isMobile ? 'text-3xl' : 'text-4xl md:text-5xl'
+            }`}>
               Ready to Start Your Journey?
             </h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+            <p className="text-gray-300 max-w-2xl mx-auto text-lg md:text-xl">
               Join 800+ users already growing with their AI companions on CARV SVM blockchain.
             </p>
             <Link
               href="/chat"
               className="group inline-block relative"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition-opacity animate-glow" />
-              <div className="relative glass-card px-12 py-6 rounded-2xl">
-                <span className="text-2xl font-bold text-white flex items-center gap-3">
+              <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl ${
+                isMobile ? 'blur-lg' : 'blur-xl'
+              } opacity-50 group-hover:opacity-100 transition-opacity ${isMobile ? '' : 'animate-glow'}`} />
+              <div className="relative glass-card px-8 md:px-12 py-4 md:py-6 rounded-2xl">
+                <span className="text-lg md:text-2xl font-bold text-white flex items-center gap-3">
                   <span>Enter Chat</span>
-                  <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </span>
@@ -490,11 +566,11 @@ function HomeContent({
           <p className="text-gray-400">
             Built for CARV Community Hackathon 2025
           </p>
-          <div className="flex justify-center gap-4 text-sm text-gray-500">
+          <div className="flex flex-col md:flex-row justify-center gap-2 md:gap-4 text-sm text-gray-500">
             <span>On-Chain AI Companion</span>
-            <span>•</span>
+            <span className="hidden md:inline">•</span>
             <span>CARV SVM Powered</span>
-            <span>•</span>
+            <span className="hidden md:inline">•</span>
             <span>DeepSeek AI Integrated</span>
           </div>
         </div>
@@ -503,31 +579,35 @@ function HomeContent({
   );
 }
 
-// Dashboard Content Component
+// Dashboard Content Component - Optimized for mobile
 function DashboardContent({ 
   globalStats, 
   topUsers, 
   recentActivities, 
   isLoading, 
-  onRefresh 
+  onRefresh,
+  isMobile 
 }: { 
   globalStats: GlobalStats | null;
   topUsers: TopUser[];
   recentActivities: any[];
   isLoading: boolean;
   onRefresh: () => void;
+  isMobile: boolean;
 }) {
   return (
-    <section id="dashboard" className="container mx-auto px-6 pt-32 pb-20">
+    <section id="dashboard" className="container mx-auto px-4 sm:px-6 pt-32 pb-20">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl md:text-6xl font-bold mb-4">
+          <h1 className={`font-bold mb-4 ${
+            isMobile ? 'text-4xl' : 'text-5xl md:text-6xl'
+          }`}>
             <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               Live Dashboard
             </span>
           </h1>
-          <p className="text-xl text-gray-400 mb-6">
+          <p className="text-gray-400 mb-6 text-lg md:text-xl">
             Real-time AIKO network statistics from CARV SVM blockchain
           </p>
           <button
@@ -551,7 +631,9 @@ function DashboardContent({
           // Dashboard Content
           <div className="space-y-8">
             {/* Global Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className={`grid gap-4 ${
+              isMobile ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-5'
+            }`}>
               {globalStats && [
                 { label: 'Total Users', value: globalStats.totalUsers, icon: '👥', color: 'purple' },
                 { label: 'Total Interactions', value: globalStats.totalInteractions, icon: '💬', color: 'pink' },
@@ -559,9 +641,11 @@ function DashboardContent({
                 { label: 'Highest Level', value: globalStats.highestLevel, icon: '🏆', color: 'pink' },
                 { label: 'Active Today', value: globalStats.activeToday, icon: '🔥', color: 'purple' },
               ].map((stat, index) => (
-                <div key={index} className="glass-card rounded-2xl p-6 text-center">
-                  <div className="text-3xl mb-2">{stat.icon}</div>
-                  <div className={`text-2xl font-bold text-${stat.color}-400 mb-1`}>
+                <div key={index} className="glass-card rounded-2xl p-4 md:p-6 text-center">
+                  <div className="text-2xl md:text-3xl mb-2">{stat.icon}</div>
+                  <div className={`font-bold mb-1 ${
+                    isMobile ? 'text-xl' : 'text-2xl'
+                  } text-${stat.color}-400`}>
                     {typeof stat.value === 'number' && stat.value % 1 !== 0 ? stat.value.toFixed(1) : stat.value}
                   </div>
                   <div className="text-gray-400 text-sm">{stat.label}</div>
@@ -569,17 +653,21 @@ function DashboardContent({
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
               {/* Top Users Leaderboard */}
-              <div className="glass-card rounded-2xl p-6">
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <div className="glass-card rounded-2xl p-4 md:p-6">
+                <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
+                  isMobile ? 'text-xl' : 'text-2xl'
+                }`}>
                   🏅 Top AIKO Trainers
                 </h3>
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   {topUsers.map((user) => (
-                    <div key={user.rank} className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    <div key={user.rank} className="flex items-center justify-between p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className={`flex items-center justify-center text-sm font-bold ${
+                          isMobile ? 'w-6 h-6 text-xs' : 'w-8 h-8'
+                        } rounded-full ${
                           user.rank === 1 ? 'bg-yellow-500 text-white' :
                           user.rank === 2 ? 'bg-gray-400 text-white' :
                           user.rank === 3 ? 'bg-orange-500 text-white' :
@@ -588,7 +676,7 @@ function DashboardContent({
                           {user.rank}
                         </div>
                         <div>
-                          <div className="font-mono text-sm text-white">{user.address}</div>
+                          <div className="font-mono text-white text-sm">{user.address}</div>
                           <div className="text-xs text-gray-400">{user.interactions} interactions</div>
                         </div>
                       </div>
@@ -602,14 +690,16 @@ function DashboardContent({
               </div>
 
               {/* Recent Activities */}
-              <div className="glass-card rounded-2xl p-6">
-                <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <div className="glass-card rounded-2xl p-4 md:p-6">
+                <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
+                  isMobile ? 'text-xl' : 'text-2xl'
+                }`}>
                   ⚡ Recent Activities
                 </h3>
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   {recentActivities.map((activity, index) => (
-                    <div key={index} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
-                      <div className="text-2xl">
+                    <div key={index} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+                      <div className="text-xl md:text-2xl">
                         {activity.action === 'level_up' && '🎉'}
                         {activity.action === 'streak_updated' && '🔥'}
                         {activity.action === 'memory_updated' && '🧠'}
@@ -634,28 +724,32 @@ function DashboardContent({
             </div>
 
             {/* Network Health */}
-            <div className="glass-card rounded-2xl p-6">
-              <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+            <div className="glass-card rounded-2xl p-4 md:p-6">
+              <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
+                isMobile ? 'text-xl' : 'text-2xl'
+              }`}>
                 🌐 CARV SVM Network Health
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                  <div className="text-green-400 text-2xl mb-2">🟢</div>
+              <div className={`grid gap-3 md:gap-4 ${
+                isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-4'
+              }`}>
+                <div className="text-center p-3 md:p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                  <div className="text-green-400 text-xl md:text-2xl mb-2">🟢</div>
                   <div className="text-white font-bold">Operational</div>
                   <div className="text-gray-400 text-sm">Blockchain</div>
                 </div>
-                <div className="text-center p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                  <div className="text-green-400 text-2xl mb-2">🟢</div>
+                <div className="text-center p-3 md:p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                  <div className="text-green-400 text-xl md:text-2xl mb-2">🟢</div>
                   <div className="text-white font-bold">Active</div>
                   <div className="text-gray-400 text-sm">AI Service</div>
                 </div>
-                <div className="text-center p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                  <div className="text-green-400 text-2xl mb-2">🟢</div>
+                <div className="text-center p-3 md:p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                  <div className="text-green-400 text-xl md:text-2xl mb-2">🟢</div>
                   <div className="text-white font-bold">Synced</div>
                   <div className="text-gray-400 text-sm">Data Storage</div>
                 </div>
-                <div className="text-center p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                  <div className="text-blue-400 text-2xl mb-2">🔵</div>
+                <div className="text-center p-3 md:p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <div className="text-blue-400 text-xl md:text-2xl mb-2">🔵</div>
                   <div className="text-white font-bold">Growing</div>
                   <div className="text-gray-400 text-sm">Network</div>
                 </div>
