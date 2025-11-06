@@ -34,14 +34,14 @@ class MemoryService {
 
   static extractCountry(message: string): string {
     // Dynamic country detection - cari kata negara dalam berbagai bahasa
-    const countryPatterns = [
+    const patterns = [ // ✅ PERBAIKAN: ganti countryPatterns jadi patterns
       /\b(from|dari|asli|origin)\s+(\w+)/i,
       /\b(live in|tinggal di|stay in)\s+(\w+)/i,
       /\b(born in|lahir di)\s+(\w+)/i,
       /\b(\w+)\s+(citizen|warga|penduduk)/i
     ];
     
-    for (const pattern of patterns) {
+    for (const pattern of patterns) { // ✅ SEKARANG patterns ADA
       const match = message.match(pattern);
       if (match) {
         // Ambil kata setelah preposition
