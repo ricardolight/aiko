@@ -205,7 +205,13 @@ export default function Home() {
 }
 
 // Home Content Component
-function HomeContent({ walletConnected }: { walletConnected: boolean }) {
+function HomeContent({ 
+  walletConnected, 
+  setActiveTab 
+}: { 
+  walletConnected: boolean;
+  setActiveTab: (tab: string) => void;
+}) {
   return (
     <>
       {/* Hero Section */}
