@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { solanaService, AikoAccount } from '@/lib/svm-service'; 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { deepseekService } from '@/lib/deepseek';
 import { useChatHistory, Message, DeepSeekMessage } from '@/app/hooks/useChatHistory';
-import { useWallet } from '@/app/context/WalletProvider'; // ✅ HAPUS WalletContextState import
+import { useWallet } from '@/app/context/WalletProvider';
 
 // Memory Service untuk extract info dari chat - GLOBAL VERSION
 class MemoryService {
@@ -41,7 +41,7 @@ class MemoryService {
       /\b(\w+)\s+(citizen|warga|penduduk)/i
     ];
     
-    for (const pattern of countryPatterns) {
+    for (const pattern of patterns) {
       const match = message.match(pattern);
       if (match) {
         // Ambil kata setelah preposition
@@ -117,26 +117,24 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ✅ FIXED: Auto-scroll tanpa condition
-  useEffect(() => {
-    // SCROLL LANGSUNG KE BOTTOM TANPA CONDITION
-    const scrollToBottom = () => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ 
-          behavior: 'smooth',
-          block: 'end'
-        });
-      }
-    };
+  // ✅ FIX: Optimized scroll dengan useCallback
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'end'
+      });
+    }
+  }, []);
 
-    // Scroll immediately
-    scrollToBottom();
-    
-    // Scroll lagi setelah render selesai (safety net)
-    const timer = setTimeout(scrollToBottom, 100);
-    
-    return () => clearTimeout(timer);
-  }, [messages]);
+  // ✅ FIX: Scroll hanya ketika ada message baru dari AIKO atau user
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && (lastMessage.sender === 'aiko' || lastMessage.sender === 'user')) {
+      const timer = setTimeout(scrollToBottom, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, scrollToBottom]);
 
   // PERBAIKAN: useEffect untuk load AIKO data
   useEffect(() => {
@@ -272,7 +270,7 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // ✅ UPDATED: handleSend function dengan Memory System
+  // ✅ FIX: Optimized handleSend untuk seamless experience
   const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
@@ -283,76 +281,87 @@ export default function ChatPage() {
 
     try {
       console.log("Sending interact transaction...");
-      // ✅ PERBAIKAN: Gunakan wallet object langsung
+      
+      // ✅ FIX: Simpan data sebelumnya untuk consistency
+      const previousAikoData = { ...aikoData };
+      
+      // ✅ FIX: Kirim transaction tapi jangan tunggu blockchain update untuk AI response
       const txSignature = await solanaService.interact(wallet);
       console.log("Transaksi terkirim:", txSignature);
 
-      // Tunggu sebentar sebelum fetch data update
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // ✅ FIX: Get AI response immediately tanpa menunggu blockchain update
+      const historyForAI: DeepSeekMessage[] = messages.slice(-10).map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.text
+      }));
 
-      // Ambil data terbaru dari SVM
-      const updatedAiko = await solanaService.getAIKO(wallet);
-      if (updatedAiko) {
-        // Cek apakah ada level up
-        if (aikoData.level < updatedAiko.level) {
-          showNotification(`🎉 Level Up! Kamu sekarang Level ${updatedAiko.level}!`);
-        }
+      // ✅ FIX: Use previous data untuk AI response dengan manual increment
+      const aikoDataForAI = {
+        owner: previousAikoData.owner.toBase58(),
+        level: previousAikoData.level,
+        xp: Number(previousAikoData.xp.toString()),
+        total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1, // Manual increment
+        last_interaction: Math.floor(Date.now() / 1000),
+        streak: Number(previousAikoData.streak.toString()),
+        birthday: Math.floor(Date.now() / 1000),
+        evolution_stage: getEvolutionStage(previousAikoData.level) as 'egg' | 'hatchling' | 'companion' | 'soulmate'
+      };
 
-        // ✅ NEW: Memory System Update
-        if (MemoryService.shouldUpdateMemory(userMessage, updatedAiko)) {
-          const newName = MemoryService.extractName(userMessage) || updatedAiko.userName;
-          const newCountry = MemoryService.extractCountry(userMessage) || updatedAiko.userCountry;
-          const newFlags = MemoryService.calculateMemoryFlags(userMessage, updatedAiko.memoryFlags);
-          
-          try {
-            await solanaService.updateMemory(wallet, newName, newCountry, newFlags);
-            console.log("🧠 Memory updated!");
-            
-            // Reload data untuk dapat data terbaru
-            const refreshedData = await solanaService.getAIKO(wallet);
-            if (refreshedData) {
-              setAikoData(refreshedData);
+      console.log("Sending to DeepSeek:", aikoDataForAI);
+
+      // ✅ FIX: Get AI response FIRST sebelum blockchain operations
+      const response = await deepseekService.chat(
+        userMessage, 
+        aikoDataForAI, 
+        historyForAI 
+      );
+      
+      // ✅ FIX: Add AIKO response immediately (user langsung melihat balasan)
+      addAikoMessage(
+        response.text, 
+        response.emotion as 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad',
+        response.emoji
+      );
+
+      // ✅ FIX: Blockchain updates dilakukan di background tanpa blocking UI
+      setTimeout(async () => {
+        try {
+          const updatedAiko = await solanaService.getAIKO(wallet);
+          if (updatedAiko) {
+            // Cek apakah ada level up
+            if (previousAikoData.level < updatedAiko.level) {
+              showNotification(`🎉 Level Up! Kamu sekarang Level ${updatedAiko.level}!`);
             }
-          } catch (memoryError) {
-            console.log("Memory update skipped:", memoryError);
+
+            // ✅ Memory System Update
+            if (MemoryService.shouldUpdateMemory(userMessage, updatedAiko)) {
+              const newName = MemoryService.extractName(userMessage) || updatedAiko.userName;
+              const newCountry = MemoryService.extractCountry(userMessage) || updatedAiko.userCountry;
+              const newFlags = MemoryService.calculateMemoryFlags(userMessage, updatedAiko.memoryFlags);
+              
+              try {
+                await solanaService.updateMemory(wallet, newName, newCountry, newFlags);
+                console.log("🧠 Memory updated!");
+                
+                // Reload data untuk dapat data terbaru
+                const refreshedData = await solanaService.getAIKO(wallet);
+                if (refreshedData) {
+                  setAikoData(refreshedData);
+                }
+              } catch (memoryError) {
+                console.log("Memory update skipped:", memoryError);
+                setAikoData(updatedAiko); // Fallback ke data tanpa memory update
+              }
+            } else {
+              setAikoData(updatedAiko);
+            }
           }
-        } else {
-          setAikoData(updatedAiko);
+        } catch (error) {
+          console.error("Background update failed:", error);
+          // Tidak perlu handle error karena UI sudah update
         }
+      }, 0);
 
-        // Prepare data untuk AI
-        const historyForAI: DeepSeekMessage[] = messages.slice(-10).map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.text
-        }));
-
-        // Convert data blockchain ke format AIKOData yang diharapkan
-        const aikoDataForAI = {
-          owner: updatedAiko.owner.toBase58(),
-          level: updatedAiko.level,
-          xp: Number(updatedAiko.xp.toString()),
-          total_interactions: Number(updatedAiko.totalInteractions.toString()),
-          last_interaction: Math.floor(Number(updatedAiko.lastInteraction.toString()) / 1000),
-          streak: Number(updatedAiko.streak.toString()),
-          birthday: Math.floor(Date.now() / 1000),
-          evolution_stage: getEvolutionStage(updatedAiko.level) as 'egg' | 'hatchling' | 'companion' | 'soulmate'
-        };
-
-        console.log("Sending to DeepSeek:", aikoDataForAI);
-
-        // Get AI response
-        const response = await deepseekService.chat(
-          userMessage, 
-          aikoDataForAI, 
-          historyForAI 
-        );
-        
-        addAikoMessage(
-          response.text, 
-          response.emotion as 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad',
-          response.emoji
-        );
-      }
     } catch (error: any) {
       console.error('Failed to send message:', error);
       addAikoMessage(
