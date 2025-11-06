@@ -1,7 +1,7 @@
 ﻿// programs/aiko-program/src/lib.rs
 use anchor_lang::prelude::*;
 
-declare_id!("9n3jKvncH2XTgvCsfhQDw1pdWPz4nrj6bFata9zEkqiU");
+declare_id!("5v3BSZA3xPYAnir7RFpRX4evtSm9tqfQPgY9vrLxaP4r");
 
 #[program]
 pub mod aiko_program {
@@ -16,8 +16,8 @@ pub mod aiko_program {
         aiko.level = 1;
         aiko.xp = 0;
         aiko.total_interactions = 0;
-        aiko.last_interaction = clock.unix_timestamp;
-        aiko.streak = 0;
+        aiko.last_interaction = clock.unix_timestamp; // Tetap pakai timestamp sekarang
+        aiko.streak = 0; // Akan di-set ke 1 di first interaction
         aiko.user_name = String::new();
         aiko.user_country = String::new();
         aiko.memory_flags = 0;
@@ -47,12 +47,17 @@ pub mod aiko_program {
             msg!("🎉 Level up! New level: {}", aiko.level);
         }
         
-        // ✅ FIXED STREAK LOGIC - TRUE DAILY STREAK
+        // ✅ FIXED STREAK LOGIC - TRUE DAILY STREAK 
         let one_day: i64 = 86400; // seconds in a day
         let last_interaction_day = aiko.last_interaction / one_day;
         let current_day = now / one_day;
         
-        if current_day == last_interaction_day {
+        // ✅ PERBAIKAN: Pakai total_interactions untuk first interaction detection
+        if aiko.total_interactions == 1 {
+            // First interaction ever - start streak at 1
+            aiko.streak = 1;
+            msg!("🎊 First interaction! Streak started: {} day", aiko.streak);
+        } else if current_day == last_interaction_day {
             // Same day - maintain streak (NO INCREMENT)
             msg!("📅 Same day - streak maintained: {}", aiko.streak);
         } else if current_day == last_interaction_day + 1 {
@@ -62,7 +67,7 @@ pub mod aiko_program {
         } else {
             // Missed one or more days - reset streak to 1
             aiko.streak = 1;
-            msg!("💔 Streak reset to 1 (missed days)");
+            msg!("💔 Streak reset to 1 (missed {} days)", current_day - last_interaction_day);
         }
         
         aiko.last_interaction = now;

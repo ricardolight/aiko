@@ -10,7 +10,7 @@ import BN from 'bn.js';
 import { sha256 } from 'js-sha256';
 
 const RPC_URL = 'https://rpc.testnet.carv.io/rpc';
-const PROGRAM_ID = new PublicKey('9n3jKvncH2XTgvCsfhQDw1pdWPz4nrj6bFata9zEkqiU');
+const PROGRAM_ID = new PublicKey('5v3BSZA3xPYAnir7RFpRX4evtSm9tqfQPgY9vrLxaP4r');
 
 // Function untuk generate instruction discriminator dari instruction name
 function getInstructionDiscriminator(instructionName: string): Buffer {
