@@ -11,92 +11,6 @@ import { useWallet } from '@/app/context/WalletProvider';
 import WelcomeOnboarding from '@/components/WelcomeOnboarding';
 import MemorySettings from '@/components/MemorySettings';
 
-// Memory Service (tetap sama)
-class MemoryService {
-  static extractName(message: string): string {
-    const patterns = [
-      /namaku\s+(\w+)/i,
-      /nama\s+saya\s+(\w+)/i, 
-      /my name is\s+(\w+)/i,
-      /panggil\s+(\w+)/i,
-      /call me\s+(\w+)/i,
-      /aku\s+(\w+)/i,
-      /saya\s+(\w+)/i,
-      /i'm\s+(\w+)/i,
-      /i am\s+(\w+)/i
-    ];
-    
-    for (const pattern of patterns) {
-      const match = message.match(pattern);
-      if (match) {
-        return match[1].trim();
-      }
-    }
-    return '';
-  }
-
-  static extractCountry(message: string): string {
-    const patterns = [
-      /\b(from|dari|asli|origin)\s+(\w+)/i,
-      /\b(live in|tinggal di|stay in)\s+(\w+)/i,
-      /\b(born in|lahir di)\s+(\w+)/i,
-      /\b(\w+)\s+(citizen|warga|penduduk)/i
-    ];
-    
-    for (const pattern of patterns) {
-      const match = message.match(pattern);
-      if (match) {
-        const country = match[2] || match[1];
-        if (country && country.length > 2) {
-          return country.toLowerCase();
-        }
-      }
-    }
-    
-    const commonCountries = [
-      'indonesia', 'malaysia', 'singapore', 'vietnam', 'thailand',
-      'japan', 'korea', 'china', 'taiwan', 'india',
-      'usa', 'america', 'canada', 'uk', 'england', 'germany', 'france', 'spain', 'italy',
-      'australia', 'new zealand', 'brazil', 'mexico', 'russia'
-    ];
-    
-    const lowerMessage = message.toLowerCase();
-    for (const country of commonCountries) {
-      if (lowerMessage.includes(country)) {
-        return country;
-      }
-    }
-    
-    return '';
-  }
-
-  static shouldUpdateMemory(userMessage: string, aikoData: AikoAccount): boolean {
-    const knowsName = (aikoData.memoryFlags & 1) !== 0;
-    const knowsCountry = (aikoData.memoryFlags & 2) !== 0;
-    
-    const nameFound = !knowsName && this.extractName(userMessage).length > 0;
-    const countryFound = !knowsCountry && this.extractCountry(userMessage).length > 0;
-    
-    return nameFound || countryFound;
-  }
-
-  static calculateMemoryFlags(userMessage: string, currentFlags: number): number {
-    let flags = currentFlags;
-    
-    const name = this.extractName(userMessage);
-    const country = this.extractCountry(userMessage);
-    
-    if (name.length > 0) {
-      flags |= 1;
-    }
-    
-    if (country.length > 0) {
-      flags |= 2;  
-    }
-    
-    return flags;
-  }
-}
 
 export default function ChatPage() {
   const wallet = useWallet();
@@ -494,20 +408,6 @@ export default function ChatPage() {
             // Cek level up (hanya show notification, tidak reset state)
             if (previousAikoData.level < updatedAiko.level) {
               showNotification(`🎉 Level Up! Kamu sekarang Level ${updatedAiko.level}!`);
-            }
-
-            // Memory System Update
-            if (MemoryService.shouldUpdateMemory(userMessage, updatedAiko)) {
-              const newName = MemoryService.extractName(userMessage) || updatedAiko.userName;
-              const newCountry = MemoryService.extractCountry(userMessage) || updatedAiko.userCountry;
-              const newFlags = MemoryService.calculateMemoryFlags(userMessage, updatedAiko.memoryFlags);
-              
-              try {
-                await solanaService.updateMemory(wallet, newName, newCountry, newFlags);
-                console.log("🧠 Memory updated!");
-              } catch (memoryError) {
-                console.log("Memory update skipped:", memoryError);
-              }
             }
             
             // ✅ UPDATE AIKO DATA TANPA RE-RENDER CHAT
