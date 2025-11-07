@@ -785,25 +785,25 @@ export default function ChatPage() {
                     { 
                       name: 'First Steps', 
                       icon: '👶', 
-                      unlocked: aikoData.totalInteractions >= 1,
+                      unlocked: Number(aikoData.totalInteractions.toString()) >= 1, // ✅ FIX: Convert BN to number
                       desc: 'Send first message'
                     },
                     { 
                       name: 'Conversationalist', 
                       icon: '💬', 
-                      unlocked: aikoData.totalInteractions >= 10,
+                      unlocked: Number(aikoData.totalInteractions.toString()) >= 10, // ✅ FIX: Convert BN to number
                       desc: '10 conversations'
                     },
                     { 
                       name: 'Week Warrior', 
                       icon: '🔥', 
-                      unlocked: aikoData.streak >= 7,
+                      unlocked: Number(aikoData.streak.toString()) >= 7, // ✅ FIX: Convert BN to number
                       desc: '7 day streak'
                     },
                     { 
                       name: 'Dedicated', 
                       icon: '⭐', 
-                      unlocked: aikoData.streak >= 30,
+                      unlocked: Number(aikoData.streak.toString()) >= 30, // ✅ FIX: Convert BN to number
                       desc: '30 day streak'
                     },
                     { 
@@ -833,13 +833,13 @@ export default function ChatPage() {
                     { 
                       name: 'Century Club', 
                       icon: '💯', 
-                      unlocked: aikoData.totalInteractions >= 100,
+                      unlocked: Number(aikoData.totalInteractions.toString()) >= 100, // ✅ FIX: Convert BN to number
                       desc: '100 interactions'
                     },
                     { 
                       name: 'XP Master', 
                       icon: '🎯', 
-                      unlocked: Number(aikoData.xp) >= 1000,
+                      unlocked: Number(aikoData.xp.toString()) >= 1000, // ✅ FIX: Convert BN to number
                       desc: '1000 XP earned'
                     },
                     { 
@@ -884,16 +884,16 @@ export default function ChatPage() {
                     <span className="text-gray-400">Progress</span>
                     <span className="text-purple-400 font-bold">
                       {[
-                        aikoData.totalInteractions >= 1,
-                        aikoData.totalInteractions >= 10,
-                        aikoData.streak >= 7,
-                        aikoData.streak >= 30,
+                        Number(aikoData.totalInteractions.toString()) >= 1,
+                        Number(aikoData.totalInteractions.toString()) >= 10,
+                        Number(aikoData.streak.toString()) >= 7,
+                        Number(aikoData.streak.toString()) >= 30,
                         aikoData.level >= 5,
                         aikoData.level >= 10,
                         aikoData.level >= 20,
                         knowsName && knowsCountry,
-                        aikoData.totalInteractions >= 100,
-                        Number(aikoData.xp) >= 1000,
+                        Number(aikoData.totalInteractions.toString()) >= 100,
+                        Number(aikoData.xp.toString()) >= 1000,
                         true,
                         aikoData.level >= 50,
                       ].filter(Boolean).length} / 12
