@@ -390,7 +390,11 @@ export default function ChatPage() {
             last_interaction: Math.floor(Date.now() / 1000),
             streak: Number(previousAikoData.streak.toString()),
             birthday: Math.floor(Date.now() / 1000),
-            evolution_stage: getEvolutionStage(previousAikoData.level)
+            evolution_stage: getEvolutionStage(previousAikoData.level),
+            // ✅ ADD THESE THREE LINES:
+            userName: previousAikoData.userName || '',
+            userCountry: previousAikoData.userCountry || '',
+            memoryFlags: previousAikoData.memoryFlags || 0
           },
           messages.slice(-10).map(msg => ({
             role: msg.sender === 'user' ? 'user' : 'assistant',
