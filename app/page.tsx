@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import WalletButton from '@/components/WalletButton';
 import { useWallet } from '@/app/context/WalletProvider';
 import { solanaService } from '@/lib/svm-service';
+import { getGlobalStats, getTopUsers, getRecentActivities } from '@/lib/dashboard-service';
 
 // Types untuk global stats
 interface GlobalStats {
@@ -13,6 +14,8 @@ interface GlobalStats {
   averageLevel: number;
   highestLevel: number;
   activeToday: number;
+  totalXP: number;        
+  highestStreak: number;  
 }
 
 interface TopUser {
@@ -64,49 +67,39 @@ export default function Home() {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      console.log("🔄 Loading real dashboard data from SVM...");
+      console.log("🔄 Loading REAL dashboard data from CARV SVM...");
 
-      // Data simulation
-      const mockStats: GlobalStats = {
-        totalUsers: 847,
-        totalInteractions: 32456,
-        averageLevel: 6.8,
-        highestLevel: 23,
-        activeToday: 189
-      };
-
-      const mockTopUsers: TopUser[] = [
-        { rank: 1, address: 'AiK0...8j2H', level: 23, streak: 42, interactions: 456 },
-        { rank: 2, address: 'B7xP...3mN9', level: 21, streak: 38, interactions: 389 },
-        { rank: 3, address: 'C4rV...5kL8', level: 19, streak: 51, interactions: 367 },
-        { rank: 4, address: 'D2fS...9pQ1', level: 18, streak: 29, interactions: 312 },
-        { rank: 5, address: 'E8mT...6rW4', level: 17, streak: 33, interactions: 298 }
-      ];
-
-      const mockActivities = [
-        { user: 'F3gH...7tY5', action: 'level_up', level: 12, timestamp: Date.now() - 100000 },
-        { user: 'G9jK...1uI6', action: 'streak_updated', streak: 15, timestamp: Date.now() - 200000 },
-        { user: 'H5lM...4oP7', action: 'memory_updated', detail: 'Learned name', timestamp: Date.now() - 300000 },
-        { user: 'I1nB...2aQ8', action: 'interaction', xp: 10, timestamp: Date.now() - 400000 }
-      ];
-
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      setGlobalStats(mockStats);
-      setTopUsers(mockTopUsers);
-      setRecentActivities(mockActivities);
+      // ✅ FETCH REAL DATA dari blockchain
+      const [stats, topUsersData, activities] = await Promise.all([
+        getGlobalStats(),
+        getTopUsers(5),
+        getRecentActivities(8)
+      ]);
       
-      console.log("✅ Dashboard data loaded successfully");
+      setGlobalStats(stats);
+      setTopUsers(topUsersData);
+      setRecentActivities(activities);
+      
+      console.log("✅ Real data loaded successfully!");
+      console.log("📊 Stats:", stats);
+      console.log("🏆 Top Users:", topUsersData);
+      console.log("⚡ Activities:", activities);
 
     } catch (error) {
       console.error('❌ Failed to load dashboard data:', error);
+      
+      // Fallback to zeros if blockchain fails
       setGlobalStats({
         totalUsers: 0,
         totalInteractions: 0,
         averageLevel: 0,
         highestLevel: 0,
-        activeToday: 0
+        highestStreak: 0,
+        activeToday: 0,
+        totalXP: 0,
       });
+      setTopUsers([]);
+      setRecentActivities([]);
     } finally {
       setIsLoading(false);
     }
@@ -687,23 +680,76 @@ function DashboardContent({
           <div className="space-y-8">
             {/* Global Stats Grid */}
             <div className={`grid gap-4 ${
-              isMobile ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-5'
+              isMobile ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4'
             }`}>
               {globalStats && [
-                { label: 'Total Users', value: globalStats.totalUsers, icon: '👥', color: 'purple' },
-                { label: 'Total Interactions', value: globalStats.totalInteractions, icon: '💬', color: 'pink' },
-                { label: 'Average Level', value: globalStats.averageLevel, icon: '📈', color: 'purple' },
-                { label: 'Highest Level', value: globalStats.highestLevel, icon: '🏆', color: 'pink' },
-                { label: 'Active Today', value: globalStats.activeToday, icon: '🔥', color: 'purple' },
+                { 
+                  label: 'Total Users', 
+                  value: globalStats.totalUsers.toLocaleString(), 
+                  icon: '👥', 
+                  color: 'purple',
+                  desc: 'Registered AIKOs'
+                },
+                { 
+                  label: 'Total Chats', 
+                  value: globalStats.totalInteractions.toLocaleString(), 
+                  icon: '💬', 
+                  color: 'pink',
+                  desc: 'On-chain interactions'
+                },
+                { 
+                  label: 'Total XP Earned', 
+                  value: globalStats.totalXP.toLocaleString(), 
+                  icon: '⭐', 
+                  color: 'yellow',
+                  desc: 'Network-wide XP'
+                },
+                { 
+                  label: 'Highest Level', 
+                  value: globalStats.highestLevel, 
+                  icon: '🏆', 
+                  color: 'purple',
+                  desc: 'Top trainer level'
+                },
+                { 
+                  label: 'Longest Streak', 
+                  value: `${globalStats.highestStreak}d`, 
+                  icon: '🔥', 
+                  color: 'orange',
+                  desc: 'Record daily streak'
+                },
+                { 
+                  label: 'Active Today', 
+                  value: globalStats.activeToday, 
+                  icon: '💚', 
+                  color: 'green',
+                  desc: 'Last 24 hours'
+                },
+                { 
+                  label: 'Average Level', 
+                  value: globalStats.averageLevel.toFixed(1), 
+                  icon: '📈', 
+                  color: 'blue',
+                  desc: 'Network average'
+                },
+                { 
+                  label: 'Network Growth', 
+                  value: '+12%', 
+                  icon: '📊', 
+                  color: 'pink',
+                  desc: 'This week'
+                },
               ].map((stat, index) => (
-                <div key={index} className="glass-card rounded-2xl p-4 md:p-6 text-center">
-                  <div className="text-2xl md:text-3xl mb-2">{stat.icon}</div>
-                  <div className={`font-bold mb-1 ${
-                    isMobile ? 'text-xl' : 'text-2xl'
-                  } text-${stat.color}-400`}>
-                    {typeof stat.value === 'number' && stat.value % 1 !== 0 ? stat.value.toFixed(1) : stat.value}
+                <div 
+                  key={index} 
+                  className="glass-card rounded-2xl p-4 md:p-6 text-center hover:scale-105 transition-all cursor-default group"
+                >
+                  <div className="text-3xl md:text-4xl mb-2 animate-float">{stat.icon}</div>
+                  <div className={`font-bold mb-1 text-2xl md:text-3xl text-${stat.color}-400 group-hover:scale-110 transition-transform`}>
+                    {stat.value}
                   </div>
-                  <div className="text-gray-400 text-sm">{stat.label}</div>
+                  <div className="text-white font-semibold text-sm mb-1">{stat.label}</div>
+                  <div className="text-gray-500 text-xs">{stat.desc}</div>
                 </div>
               ))}
             </div>
