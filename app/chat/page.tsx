@@ -365,26 +365,31 @@ export default function ChatPage() {
   };
 
   // Helper functions
-  const getEvolutionStage = (level: number): string => {
+  const getEvolutionStage = (level: number): 'egg' | 'hatchling' | 'companion' | 'soulmate' => {
     if (level >= 20) return 'soulmate';
     if (level >= 10) return 'companion';
     if (level >= 5) return 'hatchling';
     return 'egg';
   };
 
-  const getEvolutionEmoji = (stage: string) => {
-    const emojis = { egg: '🥚', hatchling: '🐣', companion: '🌸', soulmate: '✨' };
-    return emojis[stage as keyof typeof emojis] || '🥚';
+  const getEvolutionEmoji = (stage: 'egg' | 'hatchling' | 'companion' | 'soulmate') => {
+    const emojis = { 
+      egg: '🥚', 
+      hatchling: '🐣', 
+      companion: '🌸', 
+      soulmate: '✨' 
+    };
+    return emojis[stage];
   };
 
-  const getEvolutionGradient = (stage: string) => {
+  const getEvolutionGradient = (stage: 'egg' | 'hatchling' | 'companion' | 'soulmate') => {
     const gradients = {
       egg: 'from-yellow-500 to-orange-500',
       hatchling: 'from-pink-500 to-rose-500',
       companion: 'from-purple-500 to-pink-500',
       soulmate: 'from-purple-600 via-pink-600 to-yellow-500'
     };
-    return gradients[stage as keyof typeof gradients] || 'from-purple-500 to-pink-500';
+    return gradients[stage];
   };
 
   // Loading states

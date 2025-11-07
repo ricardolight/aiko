@@ -325,14 +325,14 @@ Important guidelines:
     return 'happy';
   }
 
-  private getEmoji(stage: string): string {
+  private getEmoji(stage: 'egg' | 'hatchling' | 'companion' | 'soulmate'): string {
     const emojis = {
       egg: '🥚',
-      hatchling: '🐣',
+      hatchling: '🐣', 
       companion: '🌸',
       soulmate: '✨'
     };
-    return emojis[stage as keyof typeof emojis] || '🌸';
+    return emojis[stage];
   }
 
   // Public method to check API status
