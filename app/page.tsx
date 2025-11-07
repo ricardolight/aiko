@@ -229,6 +229,7 @@ export default function Home() {
             isLoading={isLoading}
             onRefresh={loadDashboardData}
             isMobile={isMobile}
+            setActiveTab={setActiveTab}
           />
         )}
       </div>
@@ -586,7 +587,8 @@ function DashboardContent({
   recentActivities, 
   isLoading, 
   onRefresh,
-  isMobile 
+  isMobile,
+  setActiveTab 
 }: { 
   globalStats: GlobalStats | null;
   topUsers: TopUser[];
@@ -594,23 +596,46 @@ function DashboardContent({
   isLoading: boolean;
   onRefresh: () => void;
   isMobile: boolean;
+  setActiveTab: (tab: string) => void;
 }) {
+
+  // Function untuk handle back button
+  const handleBack = () => {
+    onRefresh();
+  };
+
+  // Function untuk kembali ke home tab
+  const handleGoHome = () => {
+    setActiveTab('home'); // ✅ Sekarang bisa kembali ke home
+  };
+
   return (
     <section id="dashboard" className="container mx-auto px-4 sm:px-6 pt-32 pb-20">
       <div className="max-w-7xl mx-auto">
-        {/* Header dengan Back Button */}
+        {/* Header dengan Navigation Options */}
         <div className="text-center mb-12">
-          {/* Back Button untuk Mobile */}
+          {/* Navigation untuk Mobile */}
           {isMobile && (
-            <div className="flex justify-start mb-6">
+            <div className="flex justify-between items-center mb-6">
               <button
-                onClick={() => window.history.back()}
+                onClick={handleBack}
+                disabled={isLoading}
+                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors glass-card px-4 py-2 rounded-xl disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
+                </svg>
+                <span>Refresh</span>
+              </button>
+              
+              <button
+                onClick={handleGoHome}
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors glass-card px-4 py-2 rounded-xl"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
-                <span>Back</span>
+                <span>Home</span>
               </button>
             </div>
           )}
@@ -647,17 +672,30 @@ function DashboardContent({
               </span>
             </button>
             
-            {/* Additional back button untuk desktop */}
+            {/* Navigation untuk Desktop */}
             {!isMobile && (
-              <button
-                onClick={() => window.history.back()}
-                className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all flex items-center gap-2 text-gray-400 hover:text-white"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span>Back to Home</span>
-              </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={handleBack}
+                  disabled={isLoading}
+                  className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all flex items-center gap-2 text-gray-400 hover:text-white disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
+                  </svg>
+                  <span>Refresh Data</span>
+                </button>
+                
+                <button
+                  onClick={handleGoHome}
+                  className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all flex items-center gap-2 text-gray-400 hover:text-white"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                  <span>Back to Home</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
