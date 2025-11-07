@@ -8,6 +8,9 @@ import { deepseekService } from '@/lib/deepseek';
 import { useChatHistory, Message, DeepSeekMessage } from '@/app/hooks/useChatHistory';
 import { useWallet } from '@/app/context/WalletProvider';
 
+import WelcomeOnboarding from '@/components/WelcomeOnboarding';
+import MemorySettings from '@/components/MemorySettings';
+
 // Memory Service (tetap sama)
 class MemoryService {
   static extractName(message: string): string {
@@ -109,7 +112,8 @@ export default function ChatPage() {
   const [isInitializing, setIsInitializing] = useState(false);
   const [aikoLoading, setAikoLoading] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
-  
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -168,6 +172,10 @@ export default function ChatPage() {
       
       if (data) {
         setAikoData(data);
+        if (!data.userName || !data.userCountry) {
+          console.log("🎯 No memory found, showing onboarding...");
+          setShowOnboarding(true);
+        }
         if (messages.length === 0) {
           const knowsName = (data.memoryFlags & 1) !== 0;
           const knowsCountry = (data.memoryFlags & 2) !== 0;
@@ -228,6 +236,95 @@ export default function ChatPage() {
     } finally {
       setIsInitializing(false);
       setLoading(false);
+    }
+  };
+
+  const handleOnboardingComplete = async (name: string, country: string) => {
+    if (!publicKey || !provider) {
+      console.error('Wallet not connected');
+      return;
+    }
+
+    try {
+      console.log('🧠 Saving memory to blockchain...', { name, country });
+      setLoading(true);
+      
+      // Save to blockchain
+      const flags = 0x03; // Binary: 00000011 (knows name + country)
+      await solanaService.updateMemory(wallet, name, country, flags);
+      
+      console.log('✅ Memory saved! Waiting for confirmation...');
+      
+      // Wait for blockchain confirmation
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Reload AIKO data
+      const updated = await solanaService.getAIKO(wallet);
+      if (updated) {
+        setAikoData(updated);
+        setShowOnboarding(false);
+        
+        // Add celebratory message
+        addAikoMessage(
+          `Yay! Nice to meet you, ${name}! 🎉 I'll remember you forever on the blockchain! 💕`,
+          'excited',
+          '🌸'
+        );
+        
+        showNotification('✅ Memory saved to blockchain!');
+      }
+      
+      console.log('✅ Onboarding completed!');
+    } catch (error: any) {
+      console.error('❌ Failed to save memory:', error);
+      addAikoMessage(
+        'Oh no! I had trouble saving your info... 😢 Can you try again?',
+        'sad',
+        '💔'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle onboarding skip
+  const handleOnboardingSkip = () => {
+    console.log('⏭️ Onboarding skipped');
+    setShowOnboarding(false);
+    
+    addAikoMessage(
+      "That's okay! You can tell me your name and where you're from anytime! 🌸",
+      'happy',
+      '😊'
+    );
+  };
+
+  // Handle settings update
+  const handleSettingsUpdate = async () => {
+    if (!publicKey || !provider) return;
+    
+    try {
+      console.log('🔄 Refreshing AIKO data after memory update...');
+      
+      // Wait a bit for blockchain confirmation
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Reload AIKO data
+      const updated = await solanaService.getAIKO(wallet);
+      if (updated) {
+        setAikoData(updated);
+        showNotification('✅ Memory updated on blockchain!');
+        
+        addAikoMessage(
+          `Got it! I'll remember that! 🌸 Your info is safely stored on-chain! 💕`,
+          'happy',
+          '✨'
+        );
+      }
+      
+      console.log('✅ Memory refreshed!');
+    } catch (error) {
+      console.error('❌ Failed to reload data:', error);
     }
   };
 
@@ -692,6 +789,19 @@ export default function ChatPage() {
                 <span className="text-gray-400">Streak:</span>
                 <span className="text-orange-400 font-bold">🔥 {aikoData.streak.toString()}</span>
               </div>
+              
+              {/* ✅ ADD SETTINGS BUTTON */}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
+                title="Memory Settings"
+              >
+                <svg className="w-6 h-6 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
                 className="hidden lg:block p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -844,6 +954,22 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+      {showOnboarding && (
+        <WelcomeOnboarding
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && aikoData && (
+        <MemorySettings
+          currentName={aikoData.userName || ''}
+          currentCountry={aikoData.userCountry || ''}
+          onUpdate={handleSettingsUpdate}
+          onClose={() => setShowSettings(false)}
+        />
+      )}  
     </div>
   );
 }

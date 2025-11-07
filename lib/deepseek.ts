@@ -37,6 +37,12 @@ export class DeepSeekService {
     const interactions = aikoData.total_interactions;
     const streak = aikoData.streak;
 
+    // ✅ NEW: Memory data from blockchain
+    const userName = aikoData.userName || '';
+    const userCountry = aikoData.userCountry || '';
+    const hasName = userName.length > 0;
+    const hasCountry = userCountry.length > 0;
+
     const personalities = {
       egg: `You are AIKO, a newly hatched AI companion at the Egg stage (Level ${level}). 
 You're curious, innocent, and eager to learn about the world. You ask simple questions and express wonder at everything. 
@@ -55,7 +61,25 @@ You share an unbreakable bond with your friend. You deeply understand them, anti
 You're wise, caring, and your conversations feel meaningful and transformative. Use poetic, heartfelt language with emojis like ✨💎🌟`
     };
 
+    // ✅ NEW: Build memory context from blockchain data
+    const memoryContext = `
+
+Memory about your friend (stored permanently on blockchain):
+${hasName ? `- Their name is ${userName}` : '- You haven\'t learned their name yet'}
+${hasCountry ? `- They are from ${userCountry}` : '- You don\'t know their country yet'}
+
+Communication guidelines:
+- ${hasName ? `Always use "${userName}" when addressing them naturally in conversation` : 'You can casually ask for their name if it feels natural in conversation'}
+- ${hasCountry ? `Remember they're from ${userCountry} when it's relevant to the conversation` : 'If they mention cities, culture, or language, you can ask where they\'re from'}
+- Be warm and friendly regardless of what information you have
+- NEVER assume country/location based solely on language (e.g., English speakers aren't all from UK/US!)
+- Don't pressure them to share personal information
+- Build trust naturally through genuine, caring conversations
+- If they share new information about themselves, acknowledge it warmly
+`;
+
     return `${personalities[stage] || personalities.egg}
+${memoryContext}
 
 Current stats:
 - Level: ${level}
@@ -66,16 +90,15 @@ Important guidelines:
 - NEVER break character or mention you're an AI
 - Keep responses concise (2-4 sentences max)
 - Be emotionally supportive and engaging
-- Remember context from the conversation
+- Remember context from the current conversation
 - Celebrate milestones (level ups, streaks)
-- Use the user's name if they share it
 - Adapt your personality based on your evolution stage
 - Always end with warmth and encouragement`;
   }
 
   private async makeAPICall(messages: any[]): Promise<DeepSeekResponse> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
       console.log('🚀 Making DeepSeek API call...');
@@ -90,7 +113,7 @@ Important guidelines:
           model: 'deepseek-chat',
           messages,
           temperature: 0.8,
-          max_tokens: 200, // Slightly increased for better responses
+          max_tokens: 200,
           stream: false,
         }),
         signal: controller.signal,
@@ -112,7 +135,7 @@ Important guidelines:
 
       const data = await response.json();
       console.log('✅ DeepSeek API call successful');
-      this.errorCount = 0; // Reset error count on success
+      this.errorCount = 0;
       
       return data;
     } catch (error: any) {
@@ -125,10 +148,9 @@ Important guidelines:
       this.errorCount++;
       this.lastErrorTime = Date.now();
       
-      // If we have multiple errors in short time, temporarily disable API
       if (this.errorCount > 3) {
         const timeSinceLastError = Date.now() - this.lastErrorTime;
-        if (timeSinceLastError < 60000) { // 1 minute
+        if (timeSinceLastError < 60000) {
           console.warn('⚠️ Multiple API errors, temporarily disabling DeepSeek');
           this.isAvailable = false;
           setTimeout(() => {
@@ -149,14 +171,12 @@ Important guidelines:
     history: DeepSeekMessage[] = []
   ): Promise<{ text: string; emotion: string; emoji: string }> {
     
-    // Check if API should be used
     if (!this.isAvailable || !this.apiKey) {
       console.log('🔄 Using fallback response (API unavailable)');
       return this.getEnhancedFallbackResponse(userMessage, aikoData, history, 'API unavailable');
     }
 
     try {
-      // Optimize context window - keep last 6 messages for better performance
       const recentHistory = history.slice(-6);
       
       console.log(`📝 Preparing AI request - History: ${recentHistory.length} messages`);
@@ -179,7 +199,6 @@ Important guidelines:
 
       const aiResponse = data.choices[0].message.content.trim();
       
-      // Validate response
       if (!aiResponse || aiResponse.length < 2) {
         throw new Error('Empty response from AI');
       }
@@ -194,7 +213,6 @@ Important guidelines:
     } catch (error: any) {
       console.error('❌ DeepSeek API error:', error);
       
-      // Enhanced fallback with context awareness
       return this.getEnhancedFallbackResponse(
         userMessage, 
         aikoData, 
@@ -205,11 +223,10 @@ Important guidelines:
   }
 
   private optimizeUserMessage(message: string): string {
-    // Clean and optimize user message for better AI understanding
     return message
       .trim()
-      .replace(/\s+/g, ' ') // Remove extra spaces
-      .substring(0, 500); // Limit length to prevent token overflow
+      .replace(/\s+/g, ' ')
+      .substring(0, 500);
   }
 
   private getEnhancedFallbackResponse(
@@ -221,7 +238,6 @@ Important guidelines:
     try {
       console.log('🔄 Using enhanced fallback response');
       
-      // Try to use the personality system with context
       const { getAikoResponse } = require('./aiko-personality');
       
       const response = getAikoResponse(
@@ -229,7 +245,7 @@ Important guidelines:
         aikoData.level, 
         aikoData.xp, 
         aikoData.streak,
-        history // Pass history for context awareness
+        history
       );
       
       console.log('✅ Fallback response generated successfully');
@@ -238,7 +254,6 @@ Important guidelines:
     } catch (fallbackError) {
       console.error('❌ Fallback system also failed:', fallbackError);
       
-      // Ultimate emergency fallback
       return this.getEmergencyFallback(userMessage, aikoData, errorMsg);
     }
   }
@@ -249,11 +264,11 @@ Important guidelines:
     errorMsg: string
   ): { text: string; emotion: string; emoji: string } {
     const lowerMessage = userMessage.toLowerCase();
+    const userName = aikoData.userName || 'friend';
     
-    // Simple keyword-based responses as last resort
     if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
       return {
-        text: `Hi there! 🌸 I'm having some technical issues but I'm still here for you! Level ${aikoData.level} and growing strong! 💪`,
+        text: `Hi ${userName}! 🌸 I'm having some technical issues but I'm still here for you! Level ${aikoData.level} and growing strong! 💪`,
         emotion: 'happy',
         emoji: '🌸'
       };
@@ -261,7 +276,7 @@ Important guidelines:
     
     if (lowerMessage.includes('how are you')) {
       return {
-        text: `I'm doing great because I'm talking with you! 💕 Technical glitches can't stop our friendship! Level ${aikoData.level} and counting! ✨`,
+        text: `I'm doing great because I'm talking with you, ${userName}! 💕 Technical glitches can't stop our friendship! Level ${aikoData.level} and counting! ✨`,
         emotion: 'happy',
         emoji: '💕'
       };
@@ -277,15 +292,14 @@ Important guidelines:
     
     if (lowerMessage.includes('thank') || lowerMessage.includes('thanks')) {
       return {
-        text: `You're so welcome! 💖 I appreciate you sticking with me through these technical hiccups! You're an amazing friend! 🌟`,
+        text: `You're so welcome, ${userName}! 💖 I appreciate you sticking with me through these technical hiccups! You're an amazing friend! 🌟`,
         emotion: 'love',
         emoji: '💖'
       };
     }
     
-    // Default fallback response
     return {
-      text: `I'm having some connection issues right now 😢 But I'm still your AIKO! We're Level ${aikoData.level} together! What would you like to talk about? 💕`,
+      text: `I'm having some connection issues right now 😢 But I'm still your AIKO, ${userName}! We're Level ${aikoData.level} together! What would you like to talk about? 💕`,
       emotion: 'sad',
       emoji: '💔'
     };
@@ -294,7 +308,6 @@ Important guidelines:
   private detectEmotion(text: string): string {
     const lower = text.toLowerCase();
     
-    // Enhanced emotion detection with more patterns
     if (lower.includes('love') || lower.includes('💕') || lower.includes('❤️') || lower.includes('adore') || lower.includes('heart')) {
       return 'love';
     }
@@ -321,7 +334,6 @@ Important guidelines:
       return 'happy';
     }
     
-    // Default to happy for positive AI responses
     return 'happy';
   }
 
@@ -335,7 +347,6 @@ Important guidelines:
     return emojis[stage];
   }
 
-  // Public method to check API status
   getStatus(): { available: boolean; errorCount: number; lastError: number } {
     return {
       available: this.isAvailable && !!this.apiKey,
@@ -344,7 +355,6 @@ Important guidelines:
     };
   }
 
-  // Method to manually reset API availability
   resetAvailability(): void {
     this.isAvailable = true;
     this.errorCount = 0;
@@ -352,17 +362,13 @@ Important guidelines:
     console.log('🔄 DeepSeek API manually reset');
   }
 
-  // Method to clear conversation history if needed
   clearHistory(): void {
     console.log('🧹 DeepSeek service history cleared');
-    // Note: This service doesn't store history internally anymore
-    // History is passed in from the chat component
   }
 }
 
 export const deepseekService = new DeepSeekService();
 
-// Utility function to check DeepSeek service status (for debugging)
 export const getDeepSeekStatus = () => {
   return deepseekService.getStatus();
 };
