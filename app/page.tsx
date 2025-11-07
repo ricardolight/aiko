@@ -587,21 +587,21 @@ function HomeContent({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
-                title: "Persistent Memory",
+                title: "Blockchain Memory",
                 avatar: "🧠",
-                description: "Unlike traditional AI that forgets you after each session, AIKO remembers your name, preferences, and all past conversations - stored permanently on blockchain.",
+                description: "AIKO remembers your name, location, and key preferences stored permanently on CARV SVM blockchain. Your companion's core memories never disappear.",
                 icon: "🔗"
               },
               {
                 title: "Evolution Journey",
                 avatar: "🌱",
-                description: "Watch your companion grow from a learning Egg (Lv 1-4) through Hatchling and Companion stages, all the way to Soulmate (Lv 20+) - with real XP on-chain.",
+                description: "Watch your companion grow from a learning Egg (Lv 1-4) through Hatchling and Companion stages, all the way to Soulmate (Lv 20+) - with real XP stored on-chain.",
                 icon: "📈"
               },
               {
                 title: "True Ownership",
                 avatar: "🔐",
-                description: "Your AIKO lives on CARV SVM blockchain. No company can delete your memories, change your progress, or shut down your companion. It's truly yours.",
+                description: "Your AIKO's progress, level, XP, and streak live on CARV SVM blockchain. No company can delete your companion's growth or shut down your account. It's truly yours.",
                 icon: "✨"
               },
             ].map((feature, i) => (
