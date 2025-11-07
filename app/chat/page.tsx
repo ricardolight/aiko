@@ -10,6 +10,7 @@ import { useWallet } from '@/app/context/WalletProvider';
 
 import WelcomeOnboarding from '@/components/WelcomeOnboarding';
 import MemorySettings from '@/components/MemorySettings';
+import AchievementSystem from './AchievementSystem';
 
 
 export default function ChatPage() {
@@ -774,133 +775,6 @@ export default function ChatPage() {
                   ))}
                 </div>
               </div>
-
-              {/* 🏆 Achievement Badges  */}
-              <div className="glass-card rounded-2xl p-5">
-                <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-                  <span>🏆</span> Achievements
-                </h3>
-                <div className="grid grid-cols-4 gap-3">
-                  {[
-                    { 
-                      name: 'First Steps', 
-                      icon: '👶', 
-                      unlocked: Number(aikoData.totalInteractions.toString()) >= 1, // ✅ FIX: Convert BN to number
-                      desc: 'Send first message'
-                    },
-                    { 
-                      name: 'Conversationalist', 
-                      icon: '💬', 
-                      unlocked: Number(aikoData.totalInteractions.toString()) >= 10, // ✅ FIX: Convert BN to number
-                      desc: '10 conversations'
-                    },
-                    { 
-                      name: 'Week Warrior', 
-                      icon: '🔥', 
-                      unlocked: Number(aikoData.streak.toString()) >= 7, // ✅ FIX: Convert BN to number
-                      desc: '7 day streak'
-                    },
-                    { 
-                      name: 'Dedicated', 
-                      icon: '⭐', 
-                      unlocked: Number(aikoData.streak.toString()) >= 30, // ✅ FIX: Convert BN to number
-                      desc: '30 day streak'
-                    },
-                    { 
-                      name: 'Hatchling', 
-                      icon: '🐣', 
-                      unlocked: aikoData.level >= 5,
-                      desc: 'Reach Level 5'
-                    },
-                    { 
-                      name: 'Companion', 
-                      icon: '🌸', 
-                      unlocked: aikoData.level >= 10,
-                      desc: 'Reach Level 10'
-                    },
-                    { 
-                      name: 'Soulmate', 
-                      icon: '✨', 
-                      unlocked: aikoData.level >= 20,
-                      desc: 'Reach Level 20'
-                    },
-                    { 
-                      name: 'Memory Keeper', 
-                      icon: '🧠', 
-                      unlocked: knowsName && knowsCountry,
-                      desc: 'Complete profile'
-                    },
-                    { 
-                      name: 'Century Club', 
-                      icon: '💯', 
-                      unlocked: Number(aikoData.totalInteractions.toString()) >= 100, // ✅ FIX: Convert BN to number
-                      desc: '100 interactions'
-                    },
-                    { 
-                      name: 'XP Master', 
-                      icon: '🎯', 
-                      unlocked: Number(aikoData.xp.toString()) >= 1000, // ✅ FIX: Convert BN to number
-                      desc: '1000 XP earned'
-                    },
-                    { 
-                      name: 'Early Adopter', 
-                      icon: '🚀', 
-                      unlocked: true,
-                      desc: 'Joined AIKO'
-                    },
-                    { 
-                      name: 'Legendary', 
-                      icon: '👑', 
-                      unlocked: aikoData.level >= 50,
-                      desc: 'Reach Level 50'
-                    },
-                  ].map((achievement, i) => (
-                    <div
-                      key={i}
-                      className={`relative group cursor-help text-center p-3 rounded-xl transition-all ${
-                        achievement.unlocked 
-                          ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30' 
-                          : 'bg-white/5 grayscale opacity-40'
-                      }`}
-                    >
-                      <div className={`text-3xl mb-1 ${achievement.unlocked ? 'animate-float' : ''}`}>
-                        {achievement.icon}
-                      </div>
-                      <div className="text-[10px] text-gray-400 leading-tight">
-                        {achievement.name}
-                      </div>
-                      
-                      {/* Tooltip */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                        {achievement.desc}
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="mt-4 pt-4 border-t border-white/10">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Progress</span>
-                    <span className="text-purple-400 font-bold">
-                      {[
-                        Number(aikoData.totalInteractions.toString()) >= 1,
-                        Number(aikoData.totalInteractions.toString()) >= 10,
-                        Number(aikoData.streak.toString()) >= 7,
-                        Number(aikoData.streak.toString()) >= 30,
-                        aikoData.level >= 5,
-                        aikoData.level >= 10,
-                        aikoData.level >= 20,
-                        knowsName && knowsCountry,
-                        Number(aikoData.totalInteractions.toString()) >= 100,
-                        Number(aikoData.xp.toString()) >= 1000,
-                        true,
-                        aikoData.level >= 50,
-                      ].filter(Boolean).length} / 12
-                    </span>
-                  </div>
-                </div>
-              </div>
             </div>
           </motion.aside>
         )}
@@ -947,8 +821,11 @@ export default function ChatPage() {
                 <span className="text-gray-400">Streak:</span>
                 <span className="text-orange-400 font-bold">🔥 {aikoData.streak.toString()}</span>
               </div>
-              
-              {/* ✅ ADD SETTINGS BUTTON */}
+
+              {/* ✅ ACHIEVEMENT BUTTON */}
+                <AchievementSystem />
+
+              {/* ✅ SETTINGS BUTTON */}
               <button
                 onClick={() => setShowSettings(true)}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
