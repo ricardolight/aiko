@@ -4,6 +4,7 @@ import {
   Transaction,
   TransactionInstruction,
   SystemProgram,
+  LAMPORTS_PER_SOL
 } from '@solana/web3.js';
 import { WalletContextState } from '@/app/context/WalletProvider';
 import BN from 'bn.js';
@@ -22,7 +23,7 @@ function getInstructionDiscriminator(instructionName: string): Buffer {
 
 const INITIALIZE_DISCRIMINATOR = getInstructionDiscriminator('initialize');
 const INTERACT_DISCRIMINATOR = getInstructionDiscriminator('interact');
-const UPDATE_MEMORY_DISCRIMINATOR = getInstructionDiscriminator('update_memory'); // NEW
+const UPDATE_MEMORY_DISCRIMINATOR = getInstructionDiscriminator('update_memory');
 
 console.log('🔑 Initialize Discriminator:', Array.from(INITIALIZE_DISCRIMINATOR));
 console.log('🔑 Interact Discriminator:', Array.from(INTERACT_DISCRIMINATOR));
@@ -35,9 +36,9 @@ export interface AikoAccount {
   totalInteractions: BN;
   lastInteraction: BN;
   streak: BN;
-  userName: string;           // NEW
-  userCountry: string;        // NEW  
-  memoryFlags: number;        // NEW
+  userName: string;
+  userCountry: string;  
+  memoryFlags: number;
 }
 
 class SvmService {
@@ -45,6 +46,35 @@ class SvmService {
 
   constructor() {
     this.connection = new Connection(RPC_URL, 'confirmed');
+  }
+
+  // ✅ TAMBAHKAN: Function untuk check balance
+  async getBalance(wallet: WalletContextState): Promise<number> {
+    if (!wallet.publicKey) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      const balance = await this.connection.getBalance(wallet.publicKey);
+      const balanceInSOL = balance / LAMPORTS_PER_SOL;
+      console.log(`💰 Current balance: ${balanceInSOL} SOL`);
+      return balanceInSOL;
+    } catch (error: any) {
+      console.error('Error getting balance:', error);
+      throw new Error(`Failed to get balance: ${error.message}`);
+    }
+  }
+
+  // ✅ TAMBAHKAN: Function untuk check minimum balance
+  private async checkMinimumBalance(wallet: WalletContextState, operation: string = 'transaction'): Promise<void> {
+    const balance = await this.getBalance(wallet);
+    
+    // Minimum 0.001 SOL untuk gas fees
+    const MINIMUM_BALANCE = 0.001;
+    
+    if (balance < MINIMUM_BALANCE) {
+      throw new Error(`INSUFFICIENT_BALANCE: Need at least ${MINIMUM_BALANCE} SOL for ${operation}, but only have ${balance.toFixed(4)} SOL`);
+    }
   }
 
   private getAikoPda(user: PublicKey): [PublicKey, number] {
@@ -76,7 +106,7 @@ class SvmService {
       const streak = new BN(data.slice(offset, offset + 8), 'le');
       offset += 8;
 
-      // NEW: Deserialize string fields
+      // Deserialize string fields
       const userNameLength = data.readUInt32LE(offset);
       offset += 4;
       const userName = data.slice(offset, offset + userNameLength).toString('utf8');
@@ -107,7 +137,7 @@ class SvmService {
     }
   }
 
-  // NEW: Function untuk serialize memory data
+  // Function untuk serialize memory data
   private serializeMemoryData(name: string, country: string, flags: number): Buffer {
     const nameBuffer = Buffer.from(name, 'utf8');
     const countryBuffer = Buffer.from(country, 'utf8');
@@ -172,7 +202,9 @@ class SvmService {
 
     try {
       console.log('🚀 Initializing AIKO...');
-      console.log('👤 User:', wallet.publicKey.toBase58());
+      
+      // ✅ CHECK BALANCE DULU
+      await this.checkMinimumBalance(wallet, 'initialization');
       
       const [aikoPda, bump] = this.getAikoPda(wallet.publicKey);
       console.log('📍 PDA:', aikoPda.toBase58(), 'Bump:', bump);
@@ -245,6 +277,11 @@ class SvmService {
         console.error('Program logs:', error.logs);
       }
       
+      // ✅ FORMAT ERROR MESSAGE YANG LEBIH BAIK
+      if (error.message?.includes('INSUFFICIENT_BALANCE')) {
+        throw new Error(`💰 Insufficient balance! ${error.message.split(':')[1]}. Please add SOL to your wallet.`);
+      }
+      
       throw new Error(`Initialize failed: ${error.message}`);
     }
   }
@@ -256,6 +293,9 @@ class SvmService {
 
     try {
       console.log('💬 Recording interaction...');
+      
+      // ✅ CHECK BALANCE DULU
+      await this.checkMinimumBalance(wallet, 'interaction');
       
       const [aikoPda] = this.getAikoPda(wallet.publicKey);
       console.log('🔑 Using discriminator:', Array.from(INTERACT_DISCRIMINATOR));
@@ -318,11 +358,16 @@ class SvmService {
         console.error('Program logs:', error.logs);
       }
       
+      // ✅ FORMAT ERROR MESSAGE YANG LEBIH BAIK
+      if (error.message?.includes('INSUFFICIENT_BALANCE')) {
+        throw new Error(`💰 Insufficient balance! ${error.message.split(':')[1]}. Please add SOL to your wallet.`);
+      }
+      
       throw new Error(`Interact failed: ${error.message}`);
     }
   }
 
-  // NEW: Update memory function
+  // Update memory function
   async updateMemory(wallet: WalletContextState, name: string, country: string, flags: number): Promise<string> {
     if (!wallet.publicKey || !wallet.signTransaction) {
       throw new Error('Wallet not ready');
@@ -330,6 +375,9 @@ class SvmService {
 
     try {
       console.log('🧠 Updating AIKO memory...');
+      
+      // ✅ CHECK BALANCE DULU
+      await this.checkMinimumBalance(wallet, 'memory update');
       
       const [aikoPda] = this.getAikoPda(wallet.publicKey);
       console.log('🔑 Using discriminator:', Array.from(UPDATE_MEMORY_DISCRIMINATOR));
@@ -394,6 +442,11 @@ class SvmService {
       
       if (error.logs) {
         console.error('Program logs:', error.logs);
+      }
+      
+      // ✅ FORMAT ERROR MESSAGE YANG LEBIH BAIK
+      if (error.message?.includes('INSUFFICIENT_BALANCE')) {
+        throw new Error(`💰 Insufficient balance! ${error.message.split(':')[1]}. Please add SOL to your wallet.`);
       }
       
       throw new Error(`Memory update failed: ${error.message}`);

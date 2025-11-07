@@ -229,8 +229,26 @@ export default function ChatPage() {
       }
     } catch (error: any) {
       console.error('Gagal memuat AIKO:', error);
+      // ✅ HANDLE INSUFFICIENT BALANCE DENGAN BAIK
+      if (error.message?.includes('Insufficient balance')) {
+        addAikoMessage(
+          `Oh no! 😢 ${error.message}. I need a tiny bit of SOL for gas fees to interact with the blockchain.`,
+          'sad',
+          '💸'
+        );
+        showNotification('💰 Low balance! Please add SOL to your wallet');
+        return;
+      }
+      
       if (error.message?.includes('Account does not exist')) {
         setIsInitializing(true);
+      } else {
+        // Generic error
+        addAikoMessage(
+          "Hmm, something went wrong while loading my data... 😅 Please try refreshing the page!",
+          'sad',
+          '🔄'
+        );
       }
     } finally {
       setAikoLoading(false);
