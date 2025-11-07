@@ -500,30 +500,30 @@ function HomeContent({
                   </tr>
                 </thead>
                 <tbody className="text-sm md:text-base">
-                    {([
-                      { feature: "Blockchain Storage", aiko: true as const, other: false as const },
-                      { feature: "Permanent Memory", aiko: true as const, other: false as const },
-                      { feature: "True Ownership", aiko: true as const, other: false as const },
-                      { feature: "Evolution System", aiko: true as const, other: false as const },
-                      { feature: "On-Chain XP", aiko: true as const, other: false as const },
-                      { feature: "Decentralized", aiko: true as const, other: false as const },
-                      { feature: "Privacy Focused", aiko: true as const, other: "Partial" as const },
-                      { feature: "Level Progression", aiko: true as const, other: false as const },
-                    ] as const).map((row, i) => (
-                      <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="py-4 text-gray-300">{row.feature}</td>
-                        <td className="py-4 text-center">
-                          {row.aiko === true && <span className="text-2xl">✅</span>}
-                          {row.aiko === "Partial" && <span className="text-yellow-400">⚠️</span>}
-                        </td>
-                        <td className="py-4 text-center">
-                          {row.other === true && <span className="text-2xl">✅</span>}
-                          {row.other === false && <span className="text-2xl">❌</span>}
-                          {row.other === "Partial" && <span className="text-yellow-400">⚠️</span>}
-                        </td>
-                      </tr>
-                    ))}
-
+                  {[
+                    { feature: "Blockchain Storage", aiko: "✅", other: "❌" },
+                    { feature: "Permanent Memory", aiko: "✅", other: "❌" },
+                    { feature: "True Ownership", aiko: "✅", other: "❌" },
+                    { feature: "Evolution System", aiko: "✅", other: "❌" },
+                    { feature: "On-Chain XP", aiko: "✅", other: "❌" },
+                    { feature: "Decentralized", aiko: "✅", other: "❌" },
+                    { feature: "Privacy Focused", aiko: "✅", other: "⚠️" },
+                    { feature: "Level Progression", aiko: "✅", other: "❌" },
+                  ].map((row, i) => (
+                    <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <td className="py-4 text-gray-300">{row.feature}</td>
+                      <td className="py-4 text-center">
+                        <span className={`text-2xl ${row.aiko === "⚠️" ? "text-yellow-400" : ""}`}>
+                          {row.aiko}
+                        </span>
+                      </td>
+                      <td className="py-4 text-center">
+                        <span className={`text-2xl ${row.other === "⚠️" ? "text-yellow-400" : ""}`}>
+                          {row.other}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
