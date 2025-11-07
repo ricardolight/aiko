@@ -599,14 +599,14 @@ function DashboardContent({
   setActiveTab: (tab: string) => void;
 }) {
 
-  // Function untuk handle back button
-  const handleBack = () => {
+  // Function untuk handle refresh
+  const handleRefresh = () => {
     onRefresh();
   };
 
   // Function untuk kembali ke home tab
   const handleGoHome = () => {
-    setActiveTab('home'); // ✅ Sekarang bisa kembali ke home
+    setActiveTab('home');
   };
 
   return (
@@ -618,12 +618,12 @@ function DashboardContent({
           {isMobile && (
             <div className="flex justify-between items-center mb-6">
               <button
-                onClick={handleBack}
+                onClick={handleRefresh}
                 disabled={isLoading}
                 className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors glass-card px-4 py-2 rounded-xl disabled:opacity-50"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 <span>Refresh</span>
               </button>
@@ -651,10 +651,10 @@ function DashboardContent({
             Real-time AIKO network statistics from CARV SVM blockchain
           </p>
           
-          {/* Refresh Button dengan icon yang lebih jelas */}
+          {/* Single Refresh Button - No duplicates */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={onRefresh}
+              onClick={handleRefresh}
               disabled={isLoading}
               className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-2"
             >
@@ -674,28 +674,15 @@ function DashboardContent({
             
             {/* Navigation untuk Desktop */}
             {!isMobile && (
-              <div className="flex gap-4">
-                <button
-                  onClick={handleBack}
-                  disabled={isLoading}
-                  className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all flex items-center gap-2 text-gray-400 hover:text-white disabled:opacity-50"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
-                  </svg>
-                  <span>Refresh Data</span>
-                </button>
-                
-                <button
-                  onClick={handleGoHome}
-                  className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all flex items-center gap-2 text-gray-400 hover:text-white"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                  <span>Back to Home</span>
-                </button>
-              </div>
+              <button
+                onClick={handleGoHome}
+                className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all flex items-center gap-2 text-gray-400 hover:text-white"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>Back to Home</span>
+              </button>
             )}
           </div>
         </div>
@@ -735,24 +722,12 @@ function DashboardContent({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
               {/* Top Users Leaderboard */}
               <div className="glass-card rounded-2xl p-4 md:p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className={`font-bold text-white flex items-center gap-2 ${
-                    isMobile ? 'text-xl' : 'text-2xl'
-                  }`}>
-                    🏅 Top AIKO Trainers
-                  </h3>
-                  {/* Refresh icon untuk section ini */}
-                  <button
-                    onClick={onRefresh}
-                    disabled={isLoading}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-                    title="Refresh leaderboard"
-                  >
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                  </button>
-                </div>
+                {/* HAPUS refresh icon dari sini */}
+                <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
+                  isMobile ? 'text-xl' : 'text-2xl'
+                }`}>
+                  🏅 Top AIKO Trainers
+                </h3>
                 <div className="space-y-3 md:space-y-4">
                   {topUsers.map((user) => (
                     <div key={user.rank} className="flex items-center justify-between p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
@@ -783,24 +758,12 @@ function DashboardContent({
 
               {/* Recent Activities */}
               <div className="glass-card rounded-2xl p-4 md:p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className={`font-bold text-white flex items-center gap-2 ${
-                    isMobile ? 'text-xl' : 'text-2xl'
-                  }`}>
-                    ⚡ Recent Activities
-                  </h3>
-                  {/* Refresh icon untuk section ini */}
-                  <button
-                    onClick={onRefresh}
-                    disabled={isLoading}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-                    title="Refresh activities"
-                  >
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                  </button>
-                </div>
+                {/* HAPUS refresh icon dari sini */}
+                <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
+                  isMobile ? 'text-xl' : 'text-2xl'
+                }`}>
+                  ⚡ Recent Activities
+                </h3>
                 <div className="space-y-3 md:space-y-4">
                   {recentActivities.map((activity, index) => (
                     <div key={index} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
