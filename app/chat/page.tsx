@@ -114,7 +114,9 @@ export default function ChatPage() {
   const [isSigning, setIsSigning] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);  
+  const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false); 
+  const [errorType, setErrorType] = useState<'balance' | 'generic' | null>(null);
+ 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -183,6 +185,7 @@ export default function ChatPage() {
     if (!publicKey || !provider) return;
 
     setAikoLoading(true);
+    setErrorType(null); // Reset error
     try {
       console.log("Loading AIKO data for:", publicKey.toBase58());
       
@@ -229,15 +232,19 @@ export default function ChatPage() {
       }
     } catch (error: any) {
       console.error('Gagal memuat AIKO:', error);
-      // ✅ HANDLE INSUFFICIENT BALANCE DENGAN BAIK
+      
+      // ✅ SET ERROR TYPE UNTUK UI
       if (error.message?.includes('Insufficient balance')) {
+        setErrorType('balance');
         addAikoMessage(
-          `Oh no! 😢 ${error.message}. I need a tiny bit of SOL for gas fees to interact with the blockchain.`,
+          `Oh no! 😢 ${error.message}. I need SOL for gas fees. Please bridge some SOL from Ethereum Sepolia to Carv Testnet using the bridge!`,
           'sad',
           '💸'
         );
-        showNotification('💰 Low balance! Please add SOL to your wallet');
+        showNotification('💰 Low balance! Please bridge SOL from Sepolia');
         return;
+      } else {
+        setErrorType('generic');
       }
       
       if (error.message?.includes('Account does not exist')) {
@@ -613,7 +620,7 @@ export default function ChatPage() {
     );
   }
 
-  if (!aikoData) {
+  if (!aikoData && !isInitializing && errorType) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
         <div className="text-center p-8 z-10">
@@ -625,16 +632,50 @@ export default function ChatPage() {
             transition={{ duration: 2, repeat: Infinity }}
             className="text-7xl mb-6"
           >
-            ❓
+            {errorType === 'balance' ? '💸' : '❓'}
           </motion.div>
-          <h2 className="text-3xl font-bold text-white mb-4">Something went wrong</h2>
-          <p className="text-purple-300 mb-6">Unable to load AIKO data. Please try refreshing.</p>
-          <button
-            onClick={loadAikoData}
-            className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl text-white font-semibold"
-          >
-            Retry Loading
-          </button>
+          
+          <h2 className="text-3xl font-bold text-white mb-4">
+            {errorType === 'balance' ? 'Low Balance Detected' : 'Something went wrong'}
+          </h2>
+          
+          <p className="text-purple-300 mb-6 max-w-md">
+            {errorType === 'balance' 
+              ? "Your wallet doesn't have enough SOL for gas fees. You need at least 0.001 SOL to interact with AIKO. Please bridge some SOL from Ethereum Sepolia to Carv SVM Testnet!"
+              : "Unable to load AIKO data. Please try refreshing."
+            }
+          </p>
+          
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={loadAikoData}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl text-white font-semibold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
+            >
+              {errorType === 'balance' ? 'Check Balance Again' : 'Retry Loading'}
+            </button>
+            
+            {errorType === 'balance' && (
+              <button
+                onClick={() => window.open('https://bridge.testnet.carv.io/home', '_blank')}
+                className="px-6 py-3 glass border border-yellow-500/50 rounded-2xl text-yellow-300 font-semibold hover:bg-yellow-500/10 transition-all flex items-center gap-2"
+              >
+                <span>Bridge SOL from Sepolia</span>
+                <span>🌉</span>
+              </button>
+            )}
+          </div>
+          
+          {errorType === 'balance' && (
+            <div className="mt-4 text-gray-400 text-sm max-w-md">
+              <p>💡 <strong>How to get SOL:</strong></p>
+              <ol className="text-left mt-2 space-y-1">
+                <li>1. Get ETH from <a href="https://sepoliafaucet.com" target="_blank" className="text-blue-400 hover:underline">Sepolia Faucet</a></li>
+                <li>2. Go to <a href="https://bridge.testnet.carv.io/home" target="_blank" className="text-blue-400 hover:underline">Carv Bridge</a></li>
+                <li>3. Bridge ETH from Sepolia to SOL on Carv Testnet</li>
+                <li>4. Come back and retry!</li>
+              </ol>
+            </div>
+          )}
         </div>
       </div>
     );
