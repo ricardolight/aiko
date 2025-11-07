@@ -108,31 +108,37 @@ export default function ChatPage() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isInitializing, setIsInitializing] = useState(false);
   const [aikoLoading, setAikoLoading] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
-  // ✅ FIX: Scroll yang lebih agresif
+  // ✅ FIX: Scroll system yang stabil
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ 
-        behavior,
-        block: 'end'
-      });
-    }
+    requestAnimationFrame(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior,
+          block: 'end'
+        });
+      }
+    });
   }, []);
 
-  // ✅ FIX: Scroll immediately ketika ada message baru
+  // ✅ FIX: Scroll effect yang tidak trigger re-render
   useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage) {
-      // Scroll immediately tanpa delay
-      scrollToBottom('auto');
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      const shouldScroll = Date.now() - lastMessage.timestamp < 1000;
+      
+      if (shouldScroll) {
+        scrollToBottom('smooth');
+      }
     }
   }, [messages, scrollToBottom]);
 
-  // PERBAIKAN: useEffect untuk load AIKO data
+  // Load AIKO data
   useEffect(() => {
     if (isConnected && publicKey && provider) {
       loadAikoData();
@@ -151,7 +157,6 @@ export default function ChatPage() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // PERBAIKAN: loadAikoData function
   const loadAikoData = async () => {
     if (!publicKey || !provider) return;
 
@@ -192,7 +197,6 @@ export default function ChatPage() {
     }
   };
 
-  // PERBAIKAN: handleInitialize function
   const handleInitialize = async () => {
     if (!publicKey || !provider) return;
 
@@ -258,64 +262,64 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // ✅ FIX: handleSend yang lebih optimized
+  // ✅ FIX: handleSend yang lebih seamless - TANPA RE-RENDER
   const handleSend = async () => {
-    if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
+    if (!input.trim() || loading || isSigning || !aikoData || !publicKey || !provider) return;
 
     const userMessage = input.trim();
     setInput('');
+    
+    // ✅ TAMBAHKAN USER MESSAGE (langsung muncul di UI)
     addUserMessage(userMessage);
     setLoading(true);
+    setIsSigning(true);
 
     try {
-      console.log("Sending interact transaction...");
+      console.log("🚀 Starting seamless chat process...");
       
-      // ✅ FIX: Simpan data sebelumnya
+      // ✅ JANGAN update aikoData state di sini (biarkan tetap)
       const previousAikoData = { ...aikoData };
       
-      // ✅ FIX: Kirim transaction TANPA menunggu response untuk AI
-      const txPromise = solanaService.interact(wallet);
-      
-      // ✅ FIX: Langsung prepare AI response tanpa menunggu blockchain
-      const historyForAI: DeepSeekMessage[] = messages.slice(-10).map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'assistant',
-        content: msg.text
-      }));
-
-      const aikoDataForAI = {
-        owner: previousAikoData.owner.toBase58(),
-        level: previousAikoData.level,
-        xp: Number(previousAikoData.xp.toString()),
-        total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
-        last_interaction: Math.floor(Date.now() / 1000),
-        streak: Number(previousAikoData.streak.toString()),
-        birthday: Math.floor(Date.now() / 1000),
-        evolution_stage: getEvolutionStage(previousAikoData.level) as 'egg' | 'hatchling' | 'companion' | 'soulmate'
-      };
-
-      console.log("Sending to DeepSeek:", aikoDataForAI);
-
-      // ✅ FIX: Get AI response PARALLEL dengan blockchain transaction
+      // ✅ PARALLEL PROCESS: AI Response + Blockchain
       const [response, txSignature] = await Promise.all([
-        deepseekService.chat(userMessage, aikoDataForAI, historyForAI),
-        txPromise
+        // AI Response
+        deepseekService.chat(
+          userMessage, 
+          {
+            owner: previousAikoData.owner.toBase58(),
+            level: previousAikoData.level,
+            xp: Number(previousAikoData.xp.toString()),
+            total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
+            last_interaction: Math.floor(Date.now() / 1000),
+            streak: Number(previousAikoData.streak.toString()),
+            birthday: Math.floor(Date.now() / 1000),
+            evolution_stage: getEvolutionStage(previousAikoData.level)
+          },
+          messages.slice(-10).map(msg => ({
+            role: msg.sender === 'user' ? 'user' : 'assistant',
+            content: msg.text
+          }))
+        ),
+        
+        // Blockchain Transaction (wallet sign akan muncul di sini)
+        solanaService.interact(wallet)
       ]);
       
       console.log("Transaksi terkirim:", txSignature);
 
-      // ✅ FIX: Add AIKO response immediately
+      // ✅ TAMBAHKAN AIKO RESPONSE (langsung muncul di UI)
       addAikoMessage(
         response.text, 
-        response.emotion as 'happy' | 'excited' | 'love' | 'curious' | 'proud' | 'sad',
+        response.emotion as any,
         response.emoji
       );
 
-      // ✅ FIX: Background updates dengan DEBOUNCE untuk prevent multiple re-renders
+      // ✅ BACKGROUND UPDATE: Update data tanpa re-render chat
       setTimeout(async () => {
         try {
           const updatedAiko = await solanaService.getAIKO(wallet);
           if (updatedAiko) {
-            // Cek level up
+            // Cek level up (hanya show notification, tidak reset state)
             if (previousAikoData.level < updatedAiko.level) {
               showNotification(`🎉 Level Up! Kamu sekarang Level ${updatedAiko.level}!`);
             }
@@ -329,23 +333,18 @@ export default function ChatPage() {
               try {
                 await solanaService.updateMemory(wallet, newName, newCountry, newFlags);
                 console.log("🧠 Memory updated!");
-                
-                const refreshedData = await solanaService.getAIKO(wallet);
-                if (refreshedData) {
-                  setAikoData(refreshedData);
-                }
               } catch (memoryError) {
                 console.log("Memory update skipped:", memoryError);
-                setAikoData(updatedAiko);
               }
-            } else {
-              setAikoData(updatedAiko);
             }
+            
+            // ✅ UPDATE AIKO DATA TANPA RE-RENDER CHAT
+            setAikoData(updatedAiko);
           }
         } catch (error) {
           console.error("Background update failed:", error);
         }
-      }, 500); // Debounce 500ms
+      }, 1000);
 
     } catch (error: any) {
       console.error('Failed to send message:', error);
@@ -356,7 +355,9 @@ export default function ChatPage() {
       );
     } finally {
       setLoading(false);
-      // ✅ FIX: Focus input setelah semuanya selesai
+      setIsSigning(false);
+      
+      // ✅ FOCUS INPUT SETELAH SEMUA SELESAI (tanpa reset scroll)
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
@@ -386,7 +387,7 @@ export default function ChatPage() {
     return gradients[stage as keyof typeof gradients] || 'from-purple-500 to-pink-500';
   };
 
-  // PERBAIKAN: Tampilan loading yang lebih informatif
+  // Loading states
   if (!isConnected) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
@@ -410,7 +411,6 @@ export default function ChatPage() {
     );
   }
 
-  // PERBAIKAN: Tampilan loading AIKO
   if (aikoLoading) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
@@ -429,7 +429,6 @@ export default function ChatPage() {
     );
   }
 
-  // PERBAIKAN: Tampilan initialize AIKO
   if (isInitializing && !aikoData) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
@@ -455,7 +454,6 @@ export default function ChatPage() {
     );
   }
 
-  // PERBAIKAN: Tambahkan safety check untuk aikoData
   if (!aikoData) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
@@ -483,7 +481,7 @@ export default function ChatPage() {
     );
   }
 
-  // --- TAMPILAN UTAMA (HANYA JIKA aikoData ADA) ---
+  // Main render
   const currentStage = getEvolutionStage(aikoData.level);
   const currentXP = Number(aikoData.xp.toString());
   const currentLevel = aikoData.level;
@@ -710,7 +708,7 @@ export default function ChatPage() {
             <AnimatePresence>
               {messages.map((message) => (
                 <motion.div
-                  key={message.id}
+                  key={message.id} // ✅ STABLE KEYS - TIDAK BERUBAH
                   initial={{ opacity: 0, y: 20, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
@@ -788,7 +786,7 @@ export default function ChatPage() {
           </div>
         </div>
 
-       {/* Input Area */}
+        {/* Input Area */}
         <div className="glass-card border-t border-white/10 px-6 py-6">
           <div className="max-w-4xl mx-auto">
             <div className="flex gap-3">
@@ -799,20 +797,37 @@ export default function ChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 placeholder="Message AIKO..."
-                disabled={loading}
+                disabled={loading || isSigning}
                 className="flex-1 px-6 py-4 glass rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all disabled:opacity-50"
               />
               <button
                 onClick={handleSend}
-                disabled={loading || !input.trim()}
+                disabled={loading || isSigning || !input.trim()}
                 className="group relative px-8 py-4 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl group-hover:shadow-2xl group-hover:shadow-purple-500/50 transition-all" />
+                <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl transition-all ${
+                  isSigning ? 'animate-pulse' : 'group-hover:shadow-2xl group-hover:shadow-purple-500/50'
+                }`} />
                 <div className="relative flex items-center gap-2 text-white font-semibold">
-                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  <span className="hidden sm:inline">Send</span>
+                  {isSigning ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-5 h-5"
+                      >
+                        ⏳
+                      </motion.div>
+                      <span className="hidden sm:inline">Signing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      <span className="hidden sm:inline">Send</span>
+                    </>
+                  )}
                 </div>
               </button>
             </div>
