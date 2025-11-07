@@ -69,27 +69,27 @@ const saveToStorage = (key: string, messages: Message[]): boolean => {
       clearTimeout(saveTimeout);
     }
 
-    return new Promise((resolve) => {
-      saveTimeout = setTimeout(() => {
-        try {
-          const data = JSON.stringify(messages);
-          localStorage.setItem(key, data);
-          
-          // Update size estimation in storage (for info)
-          const size = new Blob([data]).size;
-          localStorage.setItem(`${key}-info`, JSON.stringify({
-            size,
-            count: messages.length,
-            lastUpdated: Date.now()
-          }));
-          
-          resolve(true);
-        } catch (error) {
-          console.error('❌ Failed to save to storage:', error);
-          resolve(false);
-        }
-      }, 100); // Debounce 100ms
-    });
+    // ✅ FIX: Gunakan immediate execution tanpa Promise
+    saveTimeout = setTimeout(() => {
+      try {
+        const data = JSON.stringify(messages);
+        localStorage.setItem(key, data);
+        
+        // Update size estimation in storage (for info)
+        const size = new Blob([data]).size;
+        localStorage.setItem(`${key}-info`, JSON.stringify({
+          size,
+          count: messages.length,
+          lastUpdated: Date.now()
+        }));
+      } catch (error) {
+        console.error('❌ Failed to save to storage:', error);
+      }
+    }, 100); // Debounce 100ms
+
+    // ✅ FIX: Return true immediately (optimistic)
+    return true;
+    
   } catch (error) {
     console.error('❌ Failed to save to storage:', error);
     return false;
