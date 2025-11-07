@@ -1,20 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react'; // ✅ TAMBAHKAN useEffect
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface WelcomeOnboardingProps {
   isOpen: boolean;  
   onComplete: (name: string, country: string) => void;
-  onSkip: () => void;
 }
 
-export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: WelcomeOnboardingProps) {
+export default function WelcomeOnboarding({ isOpen, onComplete }: WelcomeOnboardingProps) {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [country, setCountry] = useState('');
   const [searchCountry, setSearchCountry] = useState('');
-  const [isVisible, setIsVisible] = useState(false);
 
   const countries = [
     { code: 'ID', name: 'Indonesia', flag: '🇮🇩' },
@@ -62,42 +60,20 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
     }
   };
 
-  // ✅ FIX: Reset state ketika onboarding dibuka
+  // Reset state ketika onboarding dibuka
   useEffect(() => {
     if (isOpen) {
-      setIsVisible(true);
-      // Reset ke step 1 setiap kali onboarding dibuka
       setStep(1);
       setName('');
       setCountry('');
       setSearchCountry('');
-    } else {
-      setIsVisible(false);
     }
   }, [isOpen]);
-
-  // ✅ FIX: Handle skip dengan reset state
-  const handleSkip = () => {
-    setStep(1);
-    setName('');
-    setCountry('');
-    setSearchCountry('');
-    onSkip();
-  };
-
-  // ✅ FIX: Handle back dari step 2 ke 1 dengan skip
-  const handleBackFromStep2 = () => {
-    setStep(1);
-    // Jika user kembali dari step 2, consider sebagai skip
-    onSkip();
-  };
 
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
-      isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
-    }`}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <AnimatePresence mode="wait">
         {step === 1 && (
           <motion.div
@@ -124,11 +100,11 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                 transition={{ delay: 0.3 }}
               >
                 <h2 className="text-3xl font-bold text-white mb-3">
-                  Welcome to AIKO!
+                  Welcome to AIKO! 🌸
                 </h2>
                 <p className="text-gray-300 leading-relaxed text-lg">
-                  I'm your AI companion that grows with you on the blockchain. 
-                  Every conversation helps me evolve and understand you better! 💕
+                  I'm your personal AI companion that grows with you! 
+                  Let me get to know you better so we can build our special bond together! 💕
                 </p>
               </motion.div>
 
@@ -136,7 +112,6 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="space-y-3"
               >
                 <button
                   onClick={() => setStep(2)}
@@ -144,15 +119,8 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:from-purple-500 group-hover:to-pink-500" />
                   <span className="relative font-semibold text-white text-lg">
-                    Let's Get Started! ✨
+                    Let Me Introduce Myself! ✨
                   </span>
-                </button>
-                
-                <button
-                  onClick={handleSkip}
-                  className="w-full text-gray-400 hover:text-gray-300 text-sm transition-colors py-2 hover:underline"
-                >
-                  Skip - I'll share later
                 </button>
               </motion.div>
             </div>
@@ -176,7 +144,7 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                   transition={{ type: "spring", delay: 0.1 }}
                   className="text-5xl mb-4 animate-float"
                 >
-                  🌸
+                  👋
                 </motion.div>
                 
                 <motion.h2
@@ -185,7 +153,7 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                   transition={{ delay: 0.2 }}
                   className="text-2xl font-bold text-white mb-2"
                 >
-                  What's your name?
+                  What should I call you?
                 </motion.h2>
                 
                 <motion.p
@@ -194,7 +162,7 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                   transition={{ delay: 0.3 }}
                   className="text-gray-400 text-sm"
                 >
-                  I'd love to know what to call you!
+                  I'd love to know your name so I can personalize our conversations!
                 </motion.p>
               </div>
 
@@ -209,7 +177,7 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                   onChange={(e) => setName(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && name && setStep(3)}
                   maxLength={32}
-                  placeholder="Enter your name..."
+                  placeholder="Enter your beautiful name..."
                   className="w-full px-6 py-4 glass rounded-xl text-white text-center text-xl placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 border border-white/10 transition-all"
                   autoFocus
                 />
@@ -222,7 +190,7 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                 className="flex gap-3"
               >
                 <button
-                  onClick={handleBackFromStep2}
+                  onClick={() => setStep(1)}
                   className="flex-1 glass px-6 py-3 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/10 hover:border-white/20"
                 >
                   Back
@@ -235,20 +203,10 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:from-purple-500 group-hover:to-pink-500" />
                   <span className="relative font-semibold text-white">
-                    Next →
+                    Continue 🌟
                   </span>
                 </button>
               </motion.div>
-
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
-                onClick={handleSkip}
-                className="w-full text-gray-500 hover:text-gray-300 text-sm transition-colors hover:underline"
-              >
-                Skip this step
-              </motion.button>
             </div>
           </motion.div>
         )}
@@ -288,7 +246,7 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                   transition={{ delay: 0.3 }}
                   className="text-gray-400 text-sm"
                 >
-                  This helps me understand you better!
+                  Knowing your location helps me understand your culture and context better!
                 </motion.p>
               </div>
 
@@ -301,7 +259,7 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                   type="text"
                   value={searchCountry}
                   onChange={(e) => setSearchCountry(e.target.value)}
-                  placeholder="Search country..."
+                  placeholder="Search for your country..."
                   className="w-full px-4 py-3 glass rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 border border-white/10 transition-all"
                 />
               </motion.div>
@@ -357,20 +315,10 @@ export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: Welcom
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:from-purple-500 group-hover:to-pink-500" />
                   <span className="relative font-semibold text-white">
-                    Complete! 🎉
+                    Complete Our Bond! 💕
                   </span>
                 </button>
               </motion.div>
-
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                onClick={handleSkip}
-                className="w-full text-gray-500 hover:text-gray-300 text-sm transition-colors hover:underline"
-              >
-                Skip this step
-              </motion.button>
             </div>
           </motion.div>
         )}

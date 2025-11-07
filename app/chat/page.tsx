@@ -997,7 +997,6 @@ export default function ChatPage() {
         <WelcomeOnboarding
           isOpen={showOnboarding}
           onComplete={handleOnboardingComplete}
-          onSkip={handleOnboardingSkip}
         />
       )}
       {/* Settings Modal */}
