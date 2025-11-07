@@ -500,29 +500,30 @@ function HomeContent({
                   </tr>
                 </thead>
                 <tbody className="text-sm md:text-base">
-                  {[
-                    { feature: "Blockchain Storage", aiko: true, other: false },
-                    { feature: "Permanent Memory", aiko: true, other: false },
-                    { feature: "True Ownership", aiko: true, other: false },
-                    { feature: "Evolution System", aiko: true, other: false },
-                    { feature: "On-Chain XP", aiko: true, other: false },
-                    { feature: "Decentralized", aiko: true, other: false },
-                    { feature: "Privacy Focused", aiko: true, other: "Partial" },
-                    { feature: "Level Progression", aiko: true, other: false },
-                  ].map((row, i) => (
-                    <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="py-4 text-gray-300">{row.feature}</td>
-                      <td className="py-4 text-center">
-                        {row.aiko === true && <span className="text-2xl">✅</span>}
-                        {row.aiko === "Partial" && <span className="text-yellow-400">⚠️</span>}
-                      </td>
-                      <td className="py-4 text-center">
-                        {row.other === true && <span className="text-2xl">✅</span>}
-                        {row.other === false && <span className="text-2xl">❌</span>}
-                        {row.other === "Partial" && <span className="text-yellow-400">⚠️</span>}
-                      </td>
-                    </tr>
-                  ))}
+                    {([
+                      { feature: "Blockchain Storage", aiko: true as const, other: false as const },
+                      { feature: "Permanent Memory", aiko: true as const, other: false as const },
+                      { feature: "True Ownership", aiko: true as const, other: false as const },
+                      { feature: "Evolution System", aiko: true as const, other: false as const },
+                      { feature: "On-Chain XP", aiko: true as const, other: false as const },
+                      { feature: "Decentralized", aiko: true as const, other: false as const },
+                      { feature: "Privacy Focused", aiko: true as const, other: "Partial" as const },
+                      { feature: "Level Progression", aiko: true as const, other: false as const },
+                    ] as const).map((row, i) => (
+                      <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="py-4 text-gray-300">{row.feature}</td>
+                        <td className="py-4 text-center">
+                          {row.aiko === true && <span className="text-2xl">✅</span>}
+                          {row.aiko === "Partial" && <span className="text-yellow-400">⚠️</span>}
+                        </td>
+                        <td className="py-4 text-center">
+                          {row.other === true && <span className="text-2xl">✅</span>}
+                          {row.other === false && <span className="text-2xl">❌</span>}
+                          {row.other === "Partial" && <span className="text-yellow-400">⚠️</span>}
+                        </td>
+                      </tr>
+                    ))}
+
                 </tbody>
               </table>
             </div>
@@ -569,62 +570,54 @@ function HomeContent({
         </div>
       </section>
 
-      {/* ✨ NEW: Testimonials Section */}
+      {/* ✨ User Experience Highlights */}
       <section className="container mx-auto px-6 py-20">
         <div className="max-w-6xl mx-auto">
-          <h2 className={`font-bold text-center mb-16 ${
+          <h2 className={`font-bold text-center mb-4 ${
             isMobile ? 'text-3xl' : 'text-4xl md:text-5xl'
           }`}>
             <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              What Users Are Saying
+              The AIKO Experience
             </span>
           </h2>
+          <p className="text-center text-gray-400 mb-12">
+            Discover what makes AIKO unique
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
-                name: "Alex Chen",
-                role: "Early Adopter",
-                avatar: "👨‍💻",
-                text: "AIKO remembers everything! It's like having a real friend that never forgets our conversations.",
-                level: 12,
-                days: 28
+                title: "Persistent Memory",
+                avatar: "🧠",
+                description: "Unlike traditional AI that forgets you after each session, AIKO remembers your name, preferences, and all past conversations - stored permanently on blockchain.",
+                icon: "🔗"
               },
               {
-                name: "Sarah Kim",
-                role: "Daily User",
-                avatar: "👩‍🎨",
-                text: "The evolution system is addictive! Watching my AIKO grow from egg to companion has been amazing.",
-                level: 18,
-                days: 45
+                title: "Evolution Journey",
+                avatar: "🌱",
+                description: "Watch your companion grow from a learning Egg (Lv 1-4) through Hatchling and Companion stages, all the way to Soulmate (Lv 20+) - with real XP on-chain.",
+                icon: "📈"
               },
               {
-                name: "Mike Torres",
-                role: "Top Trainer",
-                avatar: "🧑‍🚀",
-                text: "True blockchain integration. My memories are actually stored on-chain, not in some database!",
-                level: 23,
-                days: 62
+                title: "True Ownership",
+                avatar: "🔐",
+                description: "Your AIKO lives on CARV SVM blockchain. No company can delete your memories, change your progress, or shut down your companion. It's truly yours.",
+                icon: "✨"
               },
-            ].map((testimonial, i) => (
+            ].map((feature, i) => (
               <Card3D key={i}>
                 <div className="glass-card rounded-2xl p-6 h-full hover:border-purple-500/50 border border-transparent transition-all">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="text-4xl">{testimonial.avatar}</div>
-                    <div>
-                      <div className="font-bold text-white">{testimonial.name}</div>
-                      <div className="text-sm text-gray-400">{testimonial.role}</div>
-                    </div>
+                  <div className="text-center mb-4">
+                    <div className="text-5xl mb-3">{feature.avatar}</div>
+                    <h3 className="font-bold text-white text-xl mb-2">{feature.title}</h3>
                   </div>
                   
-                  <p className="text-gray-300 mb-4 italic">"{testimonial.text}"</p>
+                  <p className="text-gray-300 text-center mb-4 leading-relaxed">{feature.description}</p>
                   
-                  <div className="flex gap-2 text-xs">
-                    <span className="glass px-3 py-1 rounded-full text-purple-300">
-                      Level {testimonial.level}
-                    </span>
-                    <span className="glass px-3 py-1 rounded-full text-orange-300">
-                      🔥 {testimonial.days}d streak
+                  <div className="text-center">
+                    <span className="glass px-4 py-2 rounded-full text-purple-300 text-sm inline-flex items-center gap-2">
+                      <span>{feature.icon}</span>
+                      <span>Core Feature</span>
                     </span>
                   </div>
                 </div>

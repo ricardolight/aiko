@@ -1,5 +1,5 @@
 // lib/wallet.ts
-import { Connection, PublicKey, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 // CARV SVM Testnet Config
 export const CARV_RPC_URL = 'https://rpc.testnet.carv.io/rpc';
