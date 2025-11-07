@@ -1,18 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // ✅ TAMBAHKAN useEffect
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface WelcomeOnboardingProps {
+  isOpen: boolean;  
   onComplete: (name: string, country: string) => void;
   onSkip: () => void;
 }
 
-export default function WelcomeOnboarding({ onComplete, onSkip }: WelcomeOnboardingProps) {
+export default function WelcomeOnboarding({ isOpen, onComplete, onSkip }: WelcomeOnboardingProps) {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [country, setCountry] = useState('');
   const [searchCountry, setSearchCountry] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
 
   const countries = [
     { code: 'ID', name: 'Indonesia', flag: '🇮🇩' },
@@ -60,43 +62,99 @@ export default function WelcomeOnboarding({ onComplete, onSkip }: WelcomeOnboard
     }
   };
 
+  // ✅ FIX: Reset state ketika onboarding dibuka
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true);
+      // Reset ke step 1 setiap kali onboarding dibuka
+      setStep(1);
+      setName('');
+      setCountry('');
+      setSearchCountry('');
+    } else {
+      setIsVisible(false);
+    }
+  }, [isOpen]);
+
+  // ✅ FIX: Handle skip dengan reset state
+  const handleSkip = () => {
+    setStep(1);
+    setName('');
+    setCountry('');
+    setSearchCountry('');
+    onSkip();
+  };
+
+  // ✅ FIX: Handle back dari step 2 ke 1 dengan skip
+  const handleBackFromStep2 = () => {
+    setStep(1);
+    // Jika user kembali dari step 2, consider sebagai skip
+    onSkip();
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519] flex items-center justify-center z-50 p-4">
+    <div className={`fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
+      isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+    }`}>
       <AnimatePresence mode="wait">
         {step === 1 && (
           <motion.div
             key="step1"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="max-w-lg w-full glass-card rounded-3xl p-8"
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="max-w-lg w-full glass-card rounded-3xl p-8 border border-white/10 shadow-2xl"
           >
             <div className="text-center space-y-6">
-              <div className="text-7xl animate-float">🥚</div>
-              <h2 className="text-3xl font-bold text-white">
-                Welcome to AIKO!
-              </h2>
-              <p className="text-gray-300 leading-relaxed">
-                I'm your AI companion that grows with you on the blockchain. 
-                Every conversation helps me evolve and understand you better! 💕
-              </p>
-              <div className="space-y-3">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring" }}
+                className="text-7xl animate-float"
+              >
+                🥚
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <h2 className="text-3xl font-bold text-white mb-3">
+                  Welcome to AIKO!
+                </h2>
+                <p className="text-gray-300 leading-relaxed text-lg">
+                  I'm your AI companion that grows with you on the blockchain. 
+                  Every conversation helps me evolve and understand you better! 💕
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="space-y-3"
+              >
                 <button
                   onClick={() => setStep(2)}
-                  className="group relative px-8 py-4 rounded-xl overflow-hidden w-full"
+                  className="group relative px-8 py-4 rounded-xl overflow-hidden w-full transition-transform hover:scale-105 active:scale-95"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:from-purple-500 group-hover:to-pink-500" />
                   <span className="relative font-semibold text-white text-lg">
                     Let's Get Started! ✨
                   </span>
                 </button>
+                
                 <button
-                  onClick={onSkip}
-                  className="w-full text-gray-500 hover:text-gray-300 text-sm transition-colors py-2"
+                  onClick={handleSkip}
+                  className="w-full text-gray-400 hover:text-gray-300 text-sm transition-colors py-2 hover:underline"
                 >
                   Skip - I'll share later
                 </button>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
         )}
@@ -107,55 +165,90 @@ export default function WelcomeOnboarding({ onComplete, onSkip }: WelcomeOnboard
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
-            className="max-w-lg w-full glass-card rounded-3xl p-8"
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="max-w-lg w-full glass-card rounded-3xl p-8 border border-white/10 shadow-2xl"
           >
             <div className="space-y-6">
               <div className="text-center">
-                <div className="text-5xl mb-4 animate-float">🌸</div>
-                <h2 className="text-2xl font-bold text-white mb-2">
+                <motion.div
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", delay: 0.1 }}
+                  className="text-5xl mb-4 animate-float"
+                >
+                  🌸
+                </motion.div>
+                
+                <motion.h2
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-2xl font-bold text-white mb-2"
+                >
                   What's your name?
-                </h2>
-                <p className="text-gray-400 text-sm">
+                </motion.h2>
+                
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-gray-400 text-sm"
+                >
                   I'd love to know what to call you!
-                </p>
+                </motion.p>
               </div>
 
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && name && setStep(3)}
-                maxLength={32}
-                placeholder="Enter your name..."
-                className="w-full px-6 py-4 glass rounded-xl text-white text-center text-xl placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                autoFocus
-              />
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && name && setStep(3)}
+                  maxLength={32}
+                  placeholder="Enter your name..."
+                  className="w-full px-6 py-4 glass rounded-xl text-white text-center text-xl placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 border border-white/10 transition-all"
+                  autoFocus
+                />
+              </motion.div>
 
-              <div className="flex gap-3">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="flex gap-3"
+              >
                 <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 glass px-6 py-3 rounded-xl text-gray-400 hover:text-white transition-colors"
+                  onClick={handleBackFromStep2}
+                  className="flex-1 glass px-6 py-3 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/10 hover:border-white/20"
                 >
                   Back
                 </button>
+                
                 <button
                   onClick={() => name && setStep(3)}
                   disabled={!name}
-                  className="flex-1 group relative px-6 py-3 rounded-xl overflow-hidden disabled:opacity-50"
+                  className="flex-1 group relative px-6 py-3 rounded-xl overflow-hidden disabled:opacity-50 transition-transform hover:scale-105 active:scale-95"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:from-purple-500 group-hover:to-pink-500" />
                   <span className="relative font-semibold text-white">
                     Next →
                   </span>
                 </button>
-              </div>
+              </motion.div>
 
-              <button
-                onClick={onSkip}
-                className="w-full text-gray-500 hover:text-gray-300 text-sm transition-colors"
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                onClick={handleSkip}
+                className="w-full text-gray-500 hover:text-gray-300 text-sm transition-colors hover:underline"
               >
                 Skip this step
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         )}
@@ -166,75 +259,118 @@ export default function WelcomeOnboarding({ onComplete, onSkip }: WelcomeOnboard
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
-            className="max-w-lg w-full glass-card rounded-3xl p-8"
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="max-w-lg w-full glass-card rounded-3xl p-8 border border-white/10 shadow-2xl"
           >
             <div className="space-y-6">
               <div className="text-center">
-                <div className="text-5xl mb-4 animate-float">🌍</div>
-                <h2 className="text-2xl font-bold text-white mb-2">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", delay: 0.1 }}
+                  className="text-5xl mb-4 animate-float"
+                >
+                  🌍
+                </motion.div>
+                
+                <motion.h2
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-2xl font-bold text-white mb-2"
+                >
                   Where are you from, {name}?
-                </h2>
-                <p className="text-gray-400 text-sm">
+                </motion.h2>
+                
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-gray-400 text-sm"
+                >
                   This helps me understand you better!
-                </p>
+                </motion.p>
               </div>
 
-              <input
-                type="text"
-                value={searchCountry}
-                onChange={(e) => setSearchCountry(e.target.value)}
-                placeholder="Search country..."
-                className="w-full px-4 py-3 glass rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <input
+                  type="text"
+                  value={searchCountry}
+                  onChange={(e) => setSearchCountry(e.target.value)}
+                  placeholder="Search country..."
+                  className="w-full px-4 py-3 glass rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 border border-white/10 transition-all"
+                />
+              </motion.div>
 
-              <div className="max-h-80 overflow-y-auto space-y-2 custom-scrollbar">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="max-h-80 overflow-y-auto space-y-2 custom-scrollbar"
+              >
                 {filteredCountries.length > 0 ? (
-                  filteredCountries.map((c) => (
-                    <button
+                  filteredCountries.map((c, index) => (
+                    <motion.button
                       key={c.code}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.6 + index * 0.05 }}
                       onClick={() => setCountry(c.name)}
-                      className={`w-full px-4 py-3 rounded-xl text-left transition-all ${
+                      className={`w-full px-4 py-3 rounded-xl text-left transition-all border ${
                         country === c.name
-                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                          : 'glass hover:bg-white/10 text-gray-300'
+                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-transparent shadow-lg'
+                          : 'glass hover:bg-white/10 text-gray-300 border-white/10 hover:border-white/20'
                       }`}
                     >
                       <span className="text-xl mr-3">{c.flag}</span>
                       <span className="font-medium">{c.name}</span>
-                    </button>
+                    </motion.button>
                   ))
                 ) : (
                   <div className="text-center text-gray-500 py-8">
                     No countries found
                   </div>
                 )}
-              </div>
+              </motion.div>
 
-              <div className="flex gap-3">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="flex gap-3"
+              >
                 <button
                   onClick={() => setStep(2)}
-                  className="flex-1 glass px-6 py-3 rounded-xl text-gray-400 hover:text-white transition-colors"
+                  className="flex-1 glass px-6 py-3 rounded-xl text-gray-400 hover:text-white transition-colors border border-white/10 hover:border-white/20"
                 >
                   Back
                 </button>
+                
                 <button
                   onClick={handleComplete}
                   disabled={!country}
-                  className="flex-1 group relative px-6 py-3 rounded-xl overflow-hidden disabled:opacity-50"
+                  className="flex-1 group relative px-6 py-3 rounded-xl overflow-hidden disabled:opacity-50 transition-transform hover:scale-105 active:scale-95"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 transition-all group-hover:from-purple-500 group-hover:to-pink-500" />
                   <span className="relative font-semibold text-white">
                     Complete! 🎉
                   </span>
                 </button>
-              </div>
+              </motion.div>
 
-              <button
-                onClick={onSkip}
-                className="w-full text-gray-500 hover:text-gray-300 text-sm transition-colors"
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                onClick={handleSkip}
+                className="w-full text-gray-500 hover:text-gray-300 text-sm transition-colors hover:underline"
               >
                 Skip this step
-              </button>
+              </motion.button>
             </div>
           </motion.div>
         )}

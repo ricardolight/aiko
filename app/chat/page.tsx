@@ -114,6 +114,7 @@ export default function ChatPage() {
   const [isSigning, setIsSigning] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -149,6 +150,7 @@ export default function ChatPage() {
     } else {
       setAikoData(null);
       setIsInitializing(false);
+      setHasCheckedOnboarding(false);
     }
   }, [isConnected, publicKey, provider]);
 
@@ -161,6 +163,22 @@ export default function ChatPage() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  useEffect(() => {
+    if (aikoData && hasCheckedOnboarding) {
+      const needsOnboarding = !aikoData.userName || !aikoData.userCountry;
+      
+      if (needsOnboarding && !showOnboarding) {
+        console.log("🔄 Triggering onboarding from effect...");
+        // Delay sedikit untuk mencegah race condition
+        const timer = setTimeout(() => {
+          setShowOnboarding(true);
+        }, 300);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [aikoData, hasCheckedOnboarding, showOnboarding]);
+
   const loadAikoData = async () => {
     if (!publicKey || !provider) return;
 
@@ -172,11 +190,25 @@ export default function ChatPage() {
       
       if (data) {
         setAikoData(data);
-        if (!data.userName || !data.userCountry) {
-          console.log("🎯 No memory found, showing onboarding...");
-          setShowOnboarding(true);
+        
+        // ✅ FIX: Cek apakah perlu onboarding SETELAH data loaded
+        const needsOnboarding = !data.userName || !data.userCountry;
+        console.log("🧠 Memory check:", { 
+          userName: data.userName, 
+          userCountry: data.userCountry,
+          needsOnboarding 
+        });
+        
+        if (needsOnboarding) {
+          console.log("🎯 Showing onboarding...");
+          // Tunggu sebentar agar UI stabil dulu
+          setTimeout(() => {
+            setShowOnboarding(true);
+          }, 500);
         }
-        if (messages.length === 0) {
+        
+        // Tambahkan welcome message hanya jika bukan baru initialize
+        if (messages.length === 0 && !needsOnboarding) {
           const knowsName = (data.memoryFlags & 1) !== 0;
           const knowsCountry = (data.memoryFlags & 2) !== 0;
           
@@ -202,6 +234,7 @@ export default function ChatPage() {
       }
     } finally {
       setAikoLoading(false);
+      setHasCheckedOnboarding(true);
     }
   };
 
@@ -220,11 +253,14 @@ export default function ChatPage() {
       const newData = await solanaService.getAIKO(wallet);
       if (newData) {
         setAikoData(newData);
-        addAikoMessage(
-          "Konnichiwa! 🌸 I just hatched from my egg! I'm so excited to meet you! Let's grow together!",
-          'excited',
-          '✨'
-        );
+        
+        // ✅ FIX: Setelah create Aiko, TUNJUKKAN ONBOARDING
+        console.log("✅ Aiko created, showing onboarding...");
+        setTimeout(() => {
+          setShowOnboarding(true);
+        }, 1000);
+        
+        // Jangan tambahkan welcome message di sini, biar onboarding yang handle
       }
     } catch (error: any) {
       console.error("Gagal initialize AIKO:", error);
@@ -959,11 +995,11 @@ export default function ChatPage() {
       </div>
       {showOnboarding && (
         <WelcomeOnboarding
+          isOpen={showOnboarding}
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
         />
       )}
-
       {/* Settings Modal */}
       {showSettings && aikoData && (
         <MemorySettings
