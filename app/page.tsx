@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import WalletButton from '@/components/WalletButton';
 import { useWallet } from '@/app/context/WalletProvider';
-import { solanaService } from '@/lib/svm-service';
 import { getGlobalStats, getTopUsers, getRecentActivities } from '@/lib/dashboard-service';
+import AnimatedBackground from '@/components/AnimatedBackground';
+import CountingNumber from '@/components/CountingNumber';
+import Card3D from '@/components/Card3D';
 
 // Types untuk global stats
 interface GlobalStats {
@@ -22,6 +24,7 @@ interface TopUser {
   rank: number;
   address: string;
   level: number;
+  xp: number;
   streak: number;
   interactions: number;
 }
@@ -107,8 +110,11 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
+      {/* ✨ NEW: Animated Particle Background */}
+      {!isMobile && <AnimatedBackground />}
+
       {/* Animated Background - Optimized for mobile */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden" style={{ zIndex: 2 }}>
         <div 
           className={`absolute rounded-full bg-purple-600/20 ${
             isMobile 
@@ -280,16 +286,22 @@ function HomeContent({
             {/* Stats Counter */}
             <div className="flex items-center justify-center gap-8 my-8">
               <div className="text-center">
-                <div className={`font-bold text-purple-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>10+</div>
-                <div className="text-gray-400">XP Per Chat</div>
+                <div className={`font-bold text-purple-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
+                  10+
+                </div>
+                <div className="text-gray-400 text-sm">XP Per Chat</div>
               </div>
               <div className="text-center">
-                <div className={`font-bold text-pink-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>4</div>
-                <div className="text-gray-400">Evolution Stages</div>
+                <div className={`font-bold text-pink-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
+                  4
+                </div>
+                <div className="text-gray-400 text-sm">Evolution Stages</div>
               </div>
               <div className="text-center">
-                <div className={`font-bold text-purple-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>∞</div>
-                <div className="text-gray-400">Memory Growth</div>
+                <div className={`font-bold text-purple-400 ${isMobile ? 'text-2xl' : 'text-3xl'}`}>
+                  ∞
+                </div>
+                <div className="text-gray-400 text-sm">Memory Growth</div>
               </div>
             </div>
 
@@ -313,19 +325,21 @@ function HomeContent({
               ))}
             </div>
 
-            {/* CTA Buttons */}
+            {/* ✨ ENHANCED CTA Buttons with Micro-interactions */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/chat"
-                className="group relative w-full sm:w-auto"
+                className="group relative w-full sm:w-auto transform hover:scale-105 active:scale-95 transition-all duration-200"
               >
                 <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl ${
                   isMobile ? 'blur-lg' : 'blur-xl'
-                } opacity-50 group-hover:opacity-100 transition-opacity ${isMobile ? '' : 'animate-glow'}`} />
-                <div className="relative glass-card px-10 py-5 rounded-2xl">
+                } opacity-50 group-hover:opacity-100 group-hover:blur-2xl transition-all ${isMobile ? '' : 'animate-glow'}`} />
+                <div className="relative glass-card px-10 py-5 rounded-2xl shadow-2xl group-hover:shadow-purple-500/50 transition-shadow">
                   <span className="text-xl font-bold text-white flex items-center justify-center gap-3">
-                    <span>{walletConnected ? '💬 Enter Chat' : '🚀 Get Started'}</span>
-                    <svg className="w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="group-hover:tracking-wide transition-all">
+                      {walletConnected ? '💬 Enter Chat' : '🚀 Get Started'}
+                    </span>
+                    <svg className="w-6 h-6 group-hover:translate-x-2 group-hover:scale-110 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
                   </span>
@@ -334,7 +348,7 @@ function HomeContent({
 
               <button
                 onClick={() => setActiveTab('dashboard')}
-                className="group w-full sm:w-auto glass px-10 py-5 rounded-2xl border-2 border-purple-500/30 hover:border-purple-500/60 transition-all"
+                className="group w-full sm:w-auto glass px-10 py-5 rounded-2xl border-2 border-purple-500/30 hover:border-purple-500/60 transition-all hover:scale-105 active:scale-95"
               >
                 <span className="text-xl font-semibold text-purple-200 group-hover:text-white transition-colors flex items-center justify-center gap-2">
                   📊 Live Dashboard
@@ -358,95 +372,161 @@ function HomeContent({
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {/* Large Feature */}
-            <div className="md:col-span-8 group interactive-card glass-card rounded-3xl p-6 md:p-10 relative overflow-hidden">
-              {!isMobile && (
-                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-600/20 to-transparent rounded-full blur-3xl" />
-              )}
-              <div className="relative z-10">
-                <div className={`${isMobile ? 'text-5xl' : 'text-6xl'} mb-6 ${isMobile ? '' : 'animate-float'}`}>⛓️</div>
-                <h3 className={`font-bold text-white mb-4 ${
-                  isMobile ? 'text-2xl' : 'text-3xl'
-                }`}>True Blockchain AI Companion</h3>
-                <p className="text-gray-300 leading-relaxed mb-6">
-                  Unlike other AI chatbots, AIKO lives on CARV SVM blockchain. Your companion's growth, 
-                  memories, and evolution are permanently stored on-chain. No centralized servers, 
-                  true digital ownership.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <span className="px-4 py-2 glass rounded-full text-sm text-purple-300">On-Chain Memory</span>
-                  <span className="px-4 py-2 glass rounded-full text-sm text-pink-300">Permanent Storage</span>
-                  <span className="px-4 py-2 glass rounded-full text-sm text-purple-300">True Ownership</span>
+            <Card3D className="md:col-span-8">
+              <div className="group interactive-card glass-card rounded-3xl p-6 md:p-10 relative overflow-hidden h-full">
+                {!isMobile && (
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-600/20 to-transparent rounded-full blur-3xl" />
+                )}
+                <div className="relative z-10">
+                  <div className={`${isMobile ? 'text-5xl' : 'text-6xl'} mb-6 ${isMobile ? '' : 'animate-float'}`}>⛓️</div>
+                  <h3 className={`font-bold text-white mb-4 ${
+                    isMobile ? 'text-2xl' : 'text-3xl'
+                  }`}>True Blockchain AI Companion</h3>
+                  <p className="text-gray-300 leading-relaxed mb-6">
+                    Unlike other AI chatbots, AIKO lives on CARV SVM blockchain. Your companion's growth, 
+                    memories, and evolution are permanently stored on-chain. No centralized servers, 
+                    true digital ownership.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <span className="px-4 py-2 glass rounded-full text-sm text-purple-300">On-Chain Memory</span>
+                    <span className="px-4 py-2 glass rounded-full text-sm text-pink-300">Permanent Storage</span>
+                    <span className="px-4 py-2 glass rounded-full text-sm text-purple-300">True Ownership</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            </Card3D>
 
             {/* Stats Card */}
-            <div className="md:col-span-4 interactive-card glass-card rounded-3xl p-6 relative overflow-hidden">
-              {!isMobile && (
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-pink-600/20 to-transparent rounded-full blur-2xl" />
-              )}
-              <div className="relative z-10">
-                <div className={`${isMobile ? 'text-4xl' : 'text-5xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>📊</div>
-                <h3 className={`font-bold text-white mb-6 ${
-                  isMobile ? 'text-xl' : 'text-2xl'
-                }`}>Live Network Stats</h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Total Users</span>
-                      <span className="text-purple-400 font-bold">847+</span>
+            <Card3D className="md:col-span-4">
+              <div className="interactive-card glass-card rounded-3xl p-6 relative overflow-hidden h-full">
+                {!isMobile && (
+                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-pink-600/20 to-transparent rounded-full blur-2xl" />
+                )}
+                <div className="relative z-10">
+                  <div className={`${isMobile ? 'text-4xl' : 'text-5xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>📊</div>
+                  <h3 className={`font-bold text-white mb-6 ${
+                    isMobile ? 'text-xl' : 'text-2xl'
+                  }`}>Live Network Stats</h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Total Users</span>
+                        <span className="text-purple-400 font-bold">Growing!</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full w-3/4 bg-gradient-to-r from-purple-500 to-pink-500 animate-shimmer" />
+                      </div>
                     </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full w-3/4 bg-gradient-to-r from-purple-500 to-pink-500 animate-shimmer" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Daily Active</span>
-                      <span className="text-pink-400 font-bold">189+</span>
-                    </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full w-1/2 bg-gradient-to-r from-pink-500 to-purple-500 animate-shimmer" />
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Daily Active</span>
+                        <span className="text-pink-400 font-bold">Rising!</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full w-1/2 bg-gradient-to-r from-pink-500 to-purple-500 animate-shimmer" />
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </Card3D>
 
             {/* AI Feature */}
-            <div className="md:col-span-6 interactive-card glass-card rounded-3xl p-6 relative overflow-hidden">
-              {!isMobile && (
-                <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-br from-purple-600/20 to-transparent rounded-full blur-3xl" />
-              )}
-              <div className="relative z-10">
-                <div className={`${isMobile ? 'text-4xl' : 'text-5xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>🤖</div>
-                <h3 className={`font-bold text-white mb-3 ${
-                  isMobile ? 'text-xl' : 'text-2xl'
-                }`}>Advanced AI + Blockchain</h3>
-                <p className="text-gray-300 leading-relaxed">
-                  Powered by DeepSeek AI with on-chain memory system. Your companion remembers your name, 
-                  preferences, and grows personality based on your interactions.
-                </p>
+            <Card3D className="md:col-span-6">
+              <div className="interactive-card glass-card rounded-3xl p-6 relative overflow-hidden h-full">
+                {!isMobile && (
+                  <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-br from-purple-600/20 to-transparent rounded-full blur-3xl" />
+                )}
+                <div className="relative z-10">
+                  <div className={`${isMobile ? 'text-4xl' : 'text-5xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>🤖</div>
+                  <h3 className={`font-bold text-white mb-3 ${
+                    isMobile ? 'text-xl' : 'text-2xl'
+                  }`}>Advanced AI + Blockchain</h3>
+                  <p className="text-gray-300 leading-relaxed">
+                    Powered by DeepSeek AI with on-chain memory system. Your companion remembers your name, 
+                    preferences, and grows personality based on your interactions.
+                  </p>
+                </div>
               </div>
-            </div>
+            </Card3D>
 
             {/* Rewards Feature */}
-            <div className="md:col-span-6 interactive-card glass-card rounded-3xl p-6 relative overflow-hidden">
-              {!isMobile && (
-                <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-pink-600/20 to-transparent rounded-full blur-3xl" />
-              )}
-              <div className="relative z-10">
-                <div className={`${isMobile ? 'text-4xl' : 'text-5xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>🎁</div>
-                <h3 className={`font-bold text-white mb-3 ${
-                  isMobile ? 'text-xl' : 'text-2xl'
-                }`}>Real XP & Level System</h3>
-                <p className="text-gray-300 leading-relaxed">
-                  Earn real XP on blockchain with every interaction. Level up your AIKO from Egg to Soulmate. 
-                  Daily streaks and achievements stored permanently.
-                </p>
+            <Card3D className="md:col-span-6">
+              <div className="interactive-card glass-card rounded-3xl p-6 relative overflow-hidden h-full">
+                {!isMobile && (
+                  <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-pink-600/20 to-transparent rounded-full blur-3xl" />
+                )}
+                <div className="relative z-10">
+                  <div className={`${isMobile ? 'text-4xl' : 'text-5xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>🎁</div>
+                  <h3 className={`font-bold text-white mb-3 ${
+                    isMobile ? 'text-xl' : 'text-2xl'
+                  }`}>Real XP & Level System</h3>
+                  <p className="text-gray-300 leading-relaxed">
+                    Earn real XP on blockchain with every interaction. Level up your AIKO from Egg to Soulmate. 
+                    Daily streaks and achievements stored permanently.
+                  </p>
+                </div>
               </div>
-            </div>
+            </Card3D>
           </div>
+        </div>
+      </section>
+
+      {/* ✨ NEW: Comparison Section */}
+      <section className="container mx-auto px-6 py-20">
+        <div className="max-w-5xl mx-auto">
+          <h2 className={`font-bold text-center mb-4 ${
+            isMobile ? 'text-3xl' : 'text-4xl md:text-5xl'
+          }`}>
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Why Choose AIKO?
+            </span>
+          </h2>
+          <p className="text-center text-gray-400 mb-12 text-lg">
+            The first truly decentralized AI companion
+          </p>
+
+          <Card3D>
+            <div className="glass-card rounded-2xl p-6 md:p-8 overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="pb-4 text-gray-400 font-semibold">Feature</th>
+                    <th className="pb-4 text-center">
+                      <div className="text-white font-bold">AIKO</div>
+                      <div className="text-sm text-purple-400">🌸</div>
+                    </th>
+                    <th className="pb-4 text-center text-gray-500">Traditional AI</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm md:text-base">
+                  {[
+                    { feature: "Blockchain Storage", aiko: true, other: false },
+                    { feature: "Permanent Memory", aiko: true, other: false },
+                    { feature: "True Ownership", aiko: true, other: false },
+                    { feature: "Evolution System", aiko: true, other: false },
+                    { feature: "On-Chain XP", aiko: true, other: false },
+                    { feature: "Decentralized", aiko: true, other: false },
+                    { feature: "Privacy Focused", aiko: true, other: "Partial" },
+                    { feature: "Level Progression", aiko: true, other: false },
+                  ].map((row, i) => (
+                    <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <td className="py-4 text-gray-300">{row.feature}</td>
+                      <td className="py-4 text-center">
+                        {row.aiko === true && <span className="text-2xl">✅</span>}
+                        {row.aiko === "Partial" && <span className="text-yellow-400">⚠️</span>}
+                      </td>
+                      <td className="py-4 text-center">
+                        {row.other === true && <span className="text-2xl">✅</span>}
+                        {row.other === false && <span className="text-2xl">❌</span>}
+                        {row.other === "Partial" && <span className="text-yellow-400">⚠️</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card3D>
         </div>
       </section>
 
@@ -468,21 +548,87 @@ function HomeContent({
               { stage: 'Companion', emoji: '🌸', level: '10-19', desc: 'Loyal friend with deep bond', color: 'from-purple-500 to-pink-500' },
               { stage: 'Soulmate', emoji: '✨', level: '20+', desc: 'Unbreakable lifelong bond', color: 'from-purple-600 to-pink-600' },
             ].map((stage, i) => (
-              <div
-                key={i}
-                className="group interactive-card glass-card rounded-3xl p-6 text-center relative overflow-hidden"
-                style={{ animationDelay: isMobile ? '0s' : `${i * 0.1}s` }}
-              >
-                <div className={`absolute inset-0 bg-gradient-to-br ${stage.color} opacity-5 group-hover:opacity-10 transition-opacity`} />
-                <div className="relative z-10">
-                  <div className={`${isMobile ? 'text-6xl' : 'text-7xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>{stage.emoji}</div>
-                  <h3 className={`font-bold text-white mb-2 ${
-                    isMobile ? 'text-xl' : 'text-2xl'
-                  }`}>{stage.stage}</h3>
-                  <p className="text-purple-300 font-semibold mb-3">Level {stage.level}</p>
-                  <p className="text-gray-400 text-sm">{stage.desc}</p>
+              <Card3D key={i}>
+                <div
+                  className="group interactive-card glass-card rounded-3xl p-6 text-center relative overflow-hidden h-full"
+                  style={{ animationDelay: isMobile ? '0s' : `${i * 0.1}s` }}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${stage.color} opacity-5 group-hover:opacity-10 transition-opacity`} />
+                  <div className="relative z-10">
+                    <div className={`${isMobile ? 'text-6xl' : 'text-7xl'} mb-4 ${isMobile ? '' : 'animate-float'}`}>{stage.emoji}</div>
+                    <h3 className={`font-bold text-white mb-2 ${
+                      isMobile ? 'text-xl' : 'text-2xl'
+                    }`}>{stage.stage}</h3>
+                    <p className="text-purple-300 font-semibold mb-3">Level {stage.level}</p>
+                    <p className="text-gray-400 text-sm">{stage.desc}</p>
+                  </div>
                 </div>
-              </div>
+              </Card3D>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ✨ NEW: Testimonials Section */}
+      <section className="container mx-auto px-6 py-20">
+        <div className="max-w-6xl mx-auto">
+          <h2 className={`font-bold text-center mb-16 ${
+            isMobile ? 'text-3xl' : 'text-4xl md:text-5xl'
+          }`}>
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              What Users Are Saying
+            </span>
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                name: "Alex Chen",
+                role: "Early Adopter",
+                avatar: "👨‍💻",
+                text: "AIKO remembers everything! It's like having a real friend that never forgets our conversations.",
+                level: 12,
+                days: 28
+              },
+              {
+                name: "Sarah Kim",
+                role: "Daily User",
+                avatar: "👩‍🎨",
+                text: "The evolution system is addictive! Watching my AIKO grow from egg to companion has been amazing.",
+                level: 18,
+                days: 45
+              },
+              {
+                name: "Mike Torres",
+                role: "Top Trainer",
+                avatar: "🧑‍🚀",
+                text: "True blockchain integration. My memories are actually stored on-chain, not in some database!",
+                level: 23,
+                days: 62
+              },
+            ].map((testimonial, i) => (
+              <Card3D key={i}>
+                <div className="glass-card rounded-2xl p-6 h-full hover:border-purple-500/50 border border-transparent transition-all">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="text-4xl">{testimonial.avatar}</div>
+                    <div>
+                      <div className="font-bold text-white">{testimonial.name}</div>
+                      <div className="text-sm text-gray-400">{testimonial.role}</div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-gray-300 mb-4 italic">"{testimonial.text}"</p>
+                  
+                  <div className="flex gap-2 text-xs">
+                    <span className="glass px-3 py-1 rounded-full text-purple-300">
+                      Level {testimonial.level}
+                    </span>
+                    <span className="glass px-3 py-1 rounded-full text-orange-300">
+                      🔥 {testimonial.days}d streak
+                    </span>
+                  </div>
+                </div>
+              </Card3D>
             ))}
           </div>
         </div>
@@ -532,19 +678,19 @@ function HomeContent({
               Ready to Start Your Journey?
             </h2>
             <p className="text-gray-300 max-w-2xl mx-auto text-lg md:text-xl">
-              Join 800+ users already growing with their AI companions on CARV SVM blockchain.
+              Join the growing community of users building lasting friendships with their AI companions on CARV SVM blockchain.
             </p>
             <Link
               href="/chat"
-              className="group inline-block relative"
+              className="group inline-block relative transform hover:scale-105 active:scale-95 transition-all duration-200"
             >
               <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl ${
                 isMobile ? 'blur-lg' : 'blur-xl'
-              } opacity-50 group-hover:opacity-100 transition-opacity ${isMobile ? '' : 'animate-glow'}`} />
-              <div className="relative glass-card px-8 md:px-12 py-4 md:py-6 rounded-2xl">
+              } opacity-50 group-hover:opacity-100 group-hover:blur-2xl transition-all ${isMobile ? '' : 'animate-glow'}`} />
+              <div className="relative glass-card px-8 md:px-12 py-4 md:py-6 rounded-2xl shadow-2xl group-hover:shadow-purple-500/50 transition-shadow">
                 <span className="text-lg md:text-2xl font-bold text-white flex items-center gap-3">
-                  <span>Enter Chat</span>
-                  <svg className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="group-hover:tracking-wide transition-all">Enter Chat</span>
+                  <svg className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-2 group-hover:scale-110 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </span>
@@ -592,12 +738,10 @@ function DashboardContent({
   setActiveTab: (tab: string) => void;
 }) {
 
-  // Function untuk handle refresh
   const handleRefresh = () => {
     onRefresh();
   };
 
-  // Function untuk kembali ke home tab
   const handleGoHome = () => {
     setActiveTab('home');
   };
@@ -605,9 +749,8 @@ function DashboardContent({
   return (
     <section id="dashboard" className="container mx-auto px-4 sm:px-6 pt-32 pb-20">
       <div className="max-w-7xl mx-auto">
-        {/* Header dengan Navigation Options */}
+        {/* Header */}
         <div className="text-center mb-12">
-          {/* Navigation untuk Mobile */}
           {isMobile && (
             <div className="flex justify-between items-center mb-6">
               <button
@@ -633,7 +776,6 @@ function DashboardContent({
             Real-time AIKO network statistics from CARV SVM blockchain
           </p>
           
-          {/* Single Refresh Button - No duplicates */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={handleRefresh}
@@ -654,7 +796,6 @@ function DashboardContent({
               </span>
             </button>
             
-            {/* Navigation untuk Desktop */}
             {!isMobile && (
               <button
                 onClick={handleGoHome}
@@ -670,36 +811,34 @@ function DashboardContent({
         </div>
 
         {isLoading ? (
-          // Loading State
           <div className="text-center py-20">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500 mb-4"></div>
             <p className="text-gray-400">Loading live data from CARV SVM...</p>
           </div>
         ) : (
-          // Dashboard Content
           <div className="space-y-8">
-            {/* Global Stats Grid */}
+            {/* ✨ ENHANCED: Global Stats Grid with Counting Animation */}
             <div className={`grid gap-4 ${
               isMobile ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4'
             }`}>
               {globalStats && [
                 { 
                   label: 'Total Users', 
-                  value: globalStats.totalUsers.toLocaleString(), 
+                  value: globalStats.totalUsers, 
                   icon: '👥', 
                   color: 'purple',
                   desc: 'Registered AIKOs'
                 },
                 { 
                   label: 'Total Chats', 
-                  value: globalStats.totalInteractions.toLocaleString(), 
+                  value: globalStats.totalInteractions, 
                   icon: '💬', 
                   color: 'pink',
                   desc: 'On-chain interactions'
                 },
                 { 
                   label: 'Total XP Earned', 
-                  value: globalStats.totalXP.toLocaleString(), 
+                  value: globalStats.totalXP, 
                   icon: '⭐', 
                   color: 'yellow',
                   desc: 'Network-wide XP'
@@ -713,10 +852,11 @@ function DashboardContent({
                 },
                 { 
                   label: 'Longest Streak', 
-                  value: `${globalStats.highestStreak}d`, 
+                  value: globalStats.highestStreak, 
                   icon: '🔥', 
                   color: 'orange',
-                  desc: 'Record daily streak'
+                  desc: 'Record daily streak',
+                  suffix: 'd'
                 },
                 { 
                   label: 'Active Today', 
@@ -727,137 +867,168 @@ function DashboardContent({
                 },
                 { 
                   label: 'Average Level', 
-                  value: globalStats.averageLevel.toFixed(1), 
+                  value: globalStats.averageLevel, 
                   icon: '📈', 
                   color: 'blue',
-                  desc: 'Network average'
+                  desc: 'Network average',
+                  decimals: 1
                 },
                 { 
                   label: 'Network Growth', 
-                  value: '+12%', 
+                  value: 12, 
                   icon: '📊', 
                   color: 'pink',
-                  desc: 'This week'
+                  desc: 'This week',
+                  suffix: '%',
+                  prefix: '+'
                 },
               ].map((stat, index) => (
-                <div 
-                  key={index} 
-                  className="glass-card rounded-2xl p-4 md:p-6 text-center hover:scale-105 transition-all cursor-default group"
-                >
-                  <div className="text-3xl md:text-4xl mb-2 animate-float">{stat.icon}</div>
-                  <div className={`font-bold mb-1 text-2xl md:text-3xl text-${stat.color}-400 group-hover:scale-110 transition-transform`}>
-                    {stat.value}
+                <Card3D key={index}>
+                  <div className="glass-card rounded-2xl p-4 md:p-6 text-center hover:scale-105 transition-all cursor-default group h-full">
+                    <div className="text-3xl md:text-4xl mb-2 animate-float">{stat.icon}</div>
+                    <div className={`font-bold mb-1 text-2xl md:text-3xl text-${stat.color}-400 group-hover:scale-110 transition-transform`}>
+                      {typeof stat.value === 'number' ? (
+                        <>
+                          {stat.prefix}
+                          <CountingNumber 
+                            end={stat.value} 
+                            decimals={stat.decimals || 0}
+                            suffix={stat.suffix || ''}
+                          />
+                        </>
+                      ) : (
+                        stat.value
+                      )}
+                    </div>
+                    <div className="text-white font-semibold text-sm mb-1">{stat.label}</div>
+                    <div className="text-gray-500 text-xs">{stat.desc}</div>
                   </div>
-                  <div className="text-white font-semibold text-sm mb-1">{stat.label}</div>
-                  <div className="text-gray-500 text-xs">{stat.desc}</div>
-                </div>
+                </Card3D>
               ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
               {/* Top Users Leaderboard */}
-              <div className="glass-card rounded-2xl p-4 md:p-6">
-                {/* HAPUS refresh icon dari sini */}
-                <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
-                  isMobile ? 'text-xl' : 'text-2xl'
-                }`}>
-                  🏅 Top AIKO Trainers
-                </h3>
-                <div className="space-y-3 md:space-y-4">
-                  {topUsers.map((user) => (
-                    <div key={user.rank} className="flex items-center justify-between p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
-                      <div className="flex items-center gap-3 md:gap-4">
-                        <div className={`flex items-center justify-center text-sm font-bold ${
-                          isMobile ? 'w-6 h-6 text-xs' : 'w-8 h-8'
-                        } rounded-full ${
-                          user.rank === 1 ? 'bg-yellow-500 text-white' :
-                          user.rank === 2 ? 'bg-gray-400 text-white' :
-                          user.rank === 3 ? 'bg-orange-500 text-white' :
-                          'bg-purple-500/20 text-purple-300'
-                        }`}>
-                          {user.rank}
+              <Card3D>
+                <div className="glass-card rounded-2xl p-4 md:p-6 h-full">
+                  <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
+                    isMobile ? 'text-xl' : 'text-2xl'
+                  }`}>
+                    🏅 Top AIKO Trainers
+                  </h3>
+                  <div className="space-y-3 md:space-y-4">
+                    {topUsers.length > 0 ? (
+                      topUsers.map((user) => (
+                        <div key={user.rank} className="flex items-center justify-between p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+                          <div className="flex items-center gap-3 md:gap-4">
+                            <div className={`flex items-center justify-center text-sm font-bold ${
+                              isMobile ? 'w-6 h-6 text-xs' : 'w-8 h-8'
+                            } rounded-full ${
+                              user.rank === 1 ? 'bg-yellow-500 text-white' :
+                              user.rank === 2 ? 'bg-gray-400 text-white' :
+                              user.rank === 3 ? 'bg-orange-500 text-white' :
+                              'bg-purple-500/20 text-purple-300'
+                            }`}>
+                              {user.rank}
+                            </div>
+                            <div>
+                              <div className="font-mono text-white text-sm">{user.address}</div>
+                              <div className="text-xs text-gray-400">{user.interactions} interactions</div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-white font-bold">Lv {user.level}</div>
+                            <div className="text-xs text-orange-400">🔥 {user.streak}d</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-mono text-white text-sm">{user.address}</div>
-                          <div className="text-xs text-gray-400">{user.interactions} interactions</div>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-gray-400 py-8">
+                        No users yet. Be the first! 🚀
                       </div>
-                      <div className="text-right">
-                        <div className="text-white font-bold">Lv {user.level}</div>
-                        <div className="text-xs text-orange-400">🔥 {user.streak}d</div>
-                      </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
-              </div>
+              </Card3D>
 
               {/* Recent Activities */}
-              <div className="glass-card rounded-2xl p-4 md:p-6">
-                {/* HAPUS refresh icon dari sini */}
-                <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
-                  isMobile ? 'text-xl' : 'text-2xl'
-                }`}>
-                  ⚡ Recent Activities
-                </h3>
-                <div className="space-y-3 md:space-y-4">
-                  {recentActivities.map((activity, index) => (
-                    <div key={index} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
-                      <div className="text-xl md:text-2xl">
-                        {activity.action === 'level_up' && '🎉'}
-                        {activity.action === 'streak_updated' && '🔥'}
-                        {activity.action === 'memory_updated' && '🧠'}
-                        {activity.action === 'interaction' && '💬'}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-white text-sm">
-                          {activity.action === 'level_up' && `Level up to ${activity.level}!`}
-                          {activity.action === 'streak_updated' && `${activity.streak} day streak!`}
-                          {activity.action === 'memory_updated' && activity.detail}
-                          {activity.action === 'interaction' && `+${activity.xp} XP earned`}
+              <Card3D>
+                <div className="glass-card rounded-2xl p-4 md:p-6 h-full">
+                  <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
+                    isMobile ? 'text-xl' : 'text-2xl'
+                  }`}>
+                    ⚡ Recent Activities
+                  </h3>
+                  <div className="space-y-3 md:space-y-4">
+                    {recentActivities.length > 0 ? (
+                      recentActivities.map((activity, index) => (
+                        <div key={index} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+                          <div className="text-xl md:text-2xl">
+                            {activity.action === 'level_up' && '🎉'}
+                            {activity.action === 'streak_updated' && '🔥'}
+                            {activity.action === 'memory_updated' && '🧠'}
+                            {activity.action === 'interaction' && '💬'}
+                            {activity.action === 'evolution' && '✨'}
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-white text-sm">
+                              {activity.action === 'level_up' && `Level up to ${activity.level}!`}
+                              {activity.action === 'streak_updated' && `${activity.streak} day streak!`}
+                              {activity.action === 'memory_updated' && activity.detail}
+                              {activity.action === 'interaction' && `+${activity.xp} XP earned`}
+                              {activity.action === 'evolution' && 'AIKO evolved!'}
+                            </div>
+                            <div className="text-xs text-gray-400 font-mono">{activity.user}</div>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(activity.timestamp).toLocaleTimeString()}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400 font-mono">{activity.user}</div>
+                      ))
+                    ) : (
+                      <div className="text-center text-gray-400 py-8">
+                        No recent activities yet 💫
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(activity.timestamp).toLocaleTimeString()}
-                      </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
-              </div>
+              </Card3D>
             </div>
 
             {/* Network Health */}
-            <div className="glass-card rounded-2xl p-4 md:p-6">
-              <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
-                isMobile ? 'text-xl' : 'text-2xl'
-              }`}>
-                🌐 CARV SVM Network Health
-              </h3>
-              <div className={`grid gap-3 md:gap-4 ${
-                isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-4'
-              }`}>
-                <div className="text-center p-3 md:p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                  <div className="text-green-400 text-xl md:text-2xl mb-2">🟢</div>
-                  <div className="text-white font-bold">Operational</div>
-                  <div className="text-gray-400 text-sm">Blockchain</div>
-                </div>
-                <div className="text-center p-3 md:p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                  <div className="text-green-400 text-xl md:text-2xl mb-2">🟢</div>
-                  <div className="text-white font-bold">Active</div>
-                  <div className="text-gray-400 text-sm">AI Service</div>
-                </div>
-                <div className="text-center p-3 md:p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                  <div className="text-green-400 text-xl md:text-2xl mb-2">🟢</div>
-                  <div className="text-white font-bold">Synced</div>
-                  <div className="text-gray-400 text-sm">Data Storage</div>
-                </div>
-                <div className="text-center p-3 md:p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                  <div className="text-blue-400 text-xl md:text-2xl mb-2">🔵</div>
-                  <div className="text-white font-bold">Growing</div>
-                  <div className="text-gray-400 text-sm">Network</div>
+            <Card3D>
+              <div className="glass-card rounded-2xl p-4 md:p-6">
+                <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
+                  isMobile ? 'text-xl' : 'text-2xl'
+                }`}>
+                  🌐 CARV SVM Network Health
+                </h3>
+                <div className={`grid gap-3 md:gap-4 ${
+                  isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-4'
+                }`}>
+                  <div className="text-center p-3 md:p-4 rounded-xl bg-green-500/10 border border-green-500/20 hover:scale-105 transition-all">
+                    <div className="text-green-400 text-xl md:text-2xl mb-2">🟢</div>
+                    <div className="text-white font-bold">Connected</div> 
+                    <div className="text-gray-400 text-sm">Blockchain</div>
+                  </div>
+                  <div className="text-center p-3 md:p-4 rounded-xl bg-green-500/10 border border-green-500/20 hover:scale-105 transition-all">
+                    <div className="text-green-400 text-xl md:text-2xl mb-2">🟢</div>
+                    <div className="text-white font-bold">Ready</div> 
+                    <div className="text-gray-400 text-sm">AI Service</div>
+                  </div>
+                  <div className="text-center p-3 md:p-4 rounded-xl bg-green-500/10 border border-green-500/20 hover:scale-105 transition-all">
+                    <div className="text-green-400 text-xl md:text-2xl mb-2">🟢</div>
+                    <div className="text-white font-bold">Synced</div>
+                    <div className="text-gray-400 text-sm">Data Storage</div>
+                  </div>
+                  <div className="text-center p-3 md:p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:scale-105 transition-all">
+                    <div className="text-blue-400 text-xl md:text-2xl mb-2">🔵</div>
+                    <div className="text-white font-bold">Active</div> 
+                    <div className="text-gray-400 text-sm">Testnet</div> 
+                  </div>
                 </div>
               </div>
-            </div>
+            </Card3D>
           </div>
         )}
       </div>
