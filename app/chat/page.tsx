@@ -268,6 +268,7 @@ export default function ChatPage() {
 
     setIsInitializing(true);
     setLoading(true);
+    setErrorType(null); // ✅ RESET ERROR
     
     try {
       console.log("Initializing AIKO account...");
@@ -279,16 +280,26 @@ export default function ChatPage() {
       if (newData) {
         setAikoData(newData);
         
-        // ✅ FIX: Setelah create Aiko, TUNJUKKAN ONBOARDING
         console.log("✅ Aiko created, showing onboarding...");
         setTimeout(() => {
           setShowOnboarding(true);
         }, 1000);
-        
-        // Jangan tambahkan welcome message di sini, biar onboarding yang handle
       }
     } catch (error: any) {
       console.error("Gagal initialize AIKO:", error);
+      
+      // ✅ HANDLE BALANCE ERROR DI INITIALIZE JUGA
+      if (error.message?.includes('Insufficient balance')) {
+        setErrorType('balance');
+        addAikoMessage(
+          `Oh no! 😢 ${error.message}. I need SOL for gas fees to create my account. Please bridge some SOL from Ethereum Sepolia first!`,
+          'sad',
+          '💸'
+        );
+        showNotification('💰 Low balance! Please bridge SOL from Sepolia');
+        return;
+      }
+      
       addAikoMessage(
         "Oh no! Something went wrong while creating my account... 😢 Please try again!",
         'sad',
@@ -595,7 +606,7 @@ export default function ChatPage() {
     );
   }
 
-  if (isInitializing && !aikoData && !errorType) {
+  if (isInitializing && !aikoData) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
         <div className="text-center p-8 z-10">
@@ -608,6 +619,16 @@ export default function ChatPage() {
           </motion.div>
           <h2 className="text-3xl font-bold text-white mb-4">Create Your AIKO</h2>
           <p className="text-purple-300 mb-6">Your on-chain companion is ready to hatch!</p>
+          
+          {/* ✅ TAMBAHKAN ERROR MESSAGE JIKA ADA ERROR */}
+          {errorType === 'balance' && (
+            <div className="mb-4 p-4 glass border border-yellow-500/50 rounded-xl">
+              <p className="text-yellow-300 text-sm">
+                💡 You need SOL to create AIKO. Please bridge SOL first!
+              </p>
+            </div>
+          )}
+          
           <button
             onClick={handleInitialize}
             disabled={loading}
@@ -615,6 +636,17 @@ export default function ChatPage() {
           >
             {loading ? 'Creating...' : 'Hatch AIKO 🐣'}
           </button>
+          
+          {/* ✅ TAMBAHKAN BRIDGE BUTTON JIKA BALANCE ERROR */}
+          {errorType === 'balance' && (
+            <button
+              onClick={() => window.open('https://bridge.testnet.carv.io/home', '_blank')}
+              className="mt-3 px-6 py-3 glass border border-yellow-500/50 rounded-xl text-yellow-300 font-semibold hover:bg-yellow-500/10 transition-all flex items-center gap-2 mx-auto"
+            >
+              <span>Bridge SOL from Sepolia</span>
+              <span>🌉</span>
+            </button>
+          )}
         </div>
       </div>
     );
