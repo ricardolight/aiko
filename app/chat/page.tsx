@@ -577,7 +577,7 @@ export default function ChatPage() {
     );
   }
 
-  if (aikoLoading) {
+  if (aikoLoading && !errorType) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
         <div className="text-center p-8 z-10">
@@ -595,7 +595,7 @@ export default function ChatPage() {
     );
   }
 
-  if (isInitializing && !aikoData) {
+  if (isInitializing && !aikoData && !errorType) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
         <div className="text-center p-8 z-10">
@@ -620,7 +620,7 @@ export default function ChatPage() {
     );
   }
 
-  if (!aikoData && !isInitializing && errorType) {
+  if (!aikoData) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
         <div className="text-center p-8 z-10">
@@ -680,32 +680,8 @@ export default function ChatPage() {
       </div>
     );
   }
-  if (!aikoData) {
-    return (
-      <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
-        <div className="text-center p-8 z-10">
-          <motion.div
-            animate={{ 
-              scale: [1, 1.1, 1],
-              opacity: [1, 0.8, 1]
-            }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="text-7xl mb-6"
-          >
-            ❓
-          </motion.div>
-          <h2 className="text-3xl font-bold text-white mb-4">Something went wrong</h2>
-          <p className="text-purple-300 mb-6">Unable to load AIKO data. Please try refreshing.</p>
-          <button
-            onClick={loadAikoData}
-            className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl text-white font-semibold"
-          >
-            Retry Loading
-          </button>
-        </div>
-      </div>
-    );
-  }
+
+
   // Main render
   const currentStage = getEvolutionStage(aikoData.level);
   const currentXP = Number(aikoData.xp.toString());
