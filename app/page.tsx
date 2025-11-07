@@ -342,11 +342,11 @@ function HomeContent({
                 onClick={() => setActiveTab('dashboard')}
                 className="group w-full sm:w-auto glass px-10 py-5 rounded-2xl border-2 border-purple-500/30 hover:border-purple-500/60 transition-all"
               >
-                <span className="text-xl font-semibold text-purple-200 group-hover:text-white transition-colors flex items-center gap-2">
+                <span className="text-xl font-semibold text-purple-200 group-hover:text-white transition-colors flex items-center justify-center gap-2">
                   📊 Live Dashboard
                 </span>
               </button>
-            </div>  
+            </div>
           </div>
         </div>
       </section>
@@ -598,8 +598,23 @@ function DashboardContent({
   return (
     <section id="dashboard" className="container mx-auto px-4 sm:px-6 pt-32 pb-20">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Header dengan Back Button */}
         <div className="text-center mb-12">
+          {/* Back Button untuk Mobile */}
+          {isMobile && (
+            <div className="flex justify-start mb-6">
+              <button
+                onClick={() => window.history.back()}
+                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors glass-card px-4 py-2 rounded-xl"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span>Back</span>
+              </button>
+            </div>
+          )}
+          
           <h1 className={`font-bold mb-4 ${
             isMobile ? 'text-4xl' : 'text-5xl md:text-6xl'
           }`}>
@@ -610,15 +625,41 @@ function DashboardContent({
           <p className="text-gray-400 mb-6 text-lg md:text-xl">
             Real-time AIKO network statistics from CARV SVM blockchain
           </p>
-          <button
-            onClick={onRefresh}
-            disabled={isLoading}
-            className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all disabled:opacity-50"
-          >
-            <span className="text-white flex items-center gap-2">
-              🔄 {isLoading ? 'Refreshing...' : 'Refresh Data'}
-            </span>
-          </button>
+          
+          {/* Refresh Button dengan icon yang lebih jelas */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all disabled:opacity-50 flex items-center gap-2"
+            >
+              <span className="text-white flex items-center gap-2">
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    🔄 Refresh Data
+                  </>
+                )}
+              </span>
+            </button>
+            
+            {/* Additional back button untuk desktop */}
+            {!isMobile && (
+              <button
+                onClick={() => window.history.back()}
+                className="glass-card px-6 py-3 rounded-xl hover:scale-105 transition-all flex items-center gap-2 text-gray-400 hover:text-white"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span>Back to Home</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {isLoading ? (
@@ -656,11 +697,24 @@ function DashboardContent({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
               {/* Top Users Leaderboard */}
               <div className="glass-card rounded-2xl p-4 md:p-6">
-                <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
-                  isMobile ? 'text-xl' : 'text-2xl'
-                }`}>
-                  🏅 Top AIKO Trainers
-                </h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className={`font-bold text-white flex items-center gap-2 ${
+                    isMobile ? 'text-xl' : 'text-2xl'
+                  }`}>
+                    🏅 Top AIKO Trainers
+                  </h3>
+                  {/* Refresh icon untuk section ini */}
+                  <button
+                    onClick={onRefresh}
+                    disabled={isLoading}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+                    title="Refresh leaderboard"
+                  >
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                </div>
                 <div className="space-y-3 md:space-y-4">
                   {topUsers.map((user) => (
                     <div key={user.rank} className="flex items-center justify-between p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
@@ -691,11 +745,24 @@ function DashboardContent({
 
               {/* Recent Activities */}
               <div className="glass-card rounded-2xl p-4 md:p-6">
-                <h3 className={`font-bold text-white mb-6 flex items-center gap-2 ${
-                  isMobile ? 'text-xl' : 'text-2xl'
-                }`}>
-                  ⚡ Recent Activities
-                </h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className={`font-bold text-white flex items-center gap-2 ${
+                    isMobile ? 'text-xl' : 'text-2xl'
+                  }`}>
+                    ⚡ Recent Activities
+                  </h3>
+                  {/* Refresh icon untuk section ini */}
+                  <button
+                    onClick={onRefresh}
+                    disabled={isLoading}
+                    className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+                    title="Refresh activities"
+                  >
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                </div>
                 <div className="space-y-3 md:space-y-4">
                   {recentActivities.map((activity, index) => (
                     <div key={index} className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
