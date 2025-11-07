@@ -389,7 +389,6 @@ export default function ChatPage() {
             total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
             last_interaction: Math.floor(Date.now() / 1000),
             streak: Number(previousAikoData.streak.toString()),
-            birthday: Math.floor(Date.now() / 1000),
             evolution_stage: getEvolutionStage(previousAikoData.level),
             // ✅ ADD THESE THREE LINES:
             userName: previousAikoData.userName || '',

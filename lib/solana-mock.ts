@@ -5,7 +5,6 @@ export interface AIKOData {
   total_interactions: number;
   last_interaction: number;
   streak: number;
-  birthday: number;
   evolution_stage: 'egg' | 'hatchling' | 'companion' | 'soulmate';
   userName: string;
   userCountry: string;
