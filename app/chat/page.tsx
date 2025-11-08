@@ -343,7 +343,7 @@ export default function ChatPage() {
   };
 
   // ✅ FIXED: handleSend yang SMOOTH tanpa refresh
-  const handleSend = async () => {
+    const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
     const userMessage = input.trim();
@@ -354,91 +354,46 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
-      console.log("🚀 Starting smooth chat process...");
-      
-      // ✅ PREPARE DATA SEBELUM BLOCKCHAIN (no state changes)
-      const previousAikoData = { ...aikoData };
-      
-      // ✅ PARALLEL: AI Response + Blockchain
-      const [response, txSignature] = await Promise.all([
-        // AI Response (cepat)
-        deepseekService.chat(
-          userMessage, 
-          {
-            owner: previousAikoData.owner.toBase58(),
-            level: previousAikoData.level,
-            xp: Number(previousAikoData.xp.toString()),
-            total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
-            last_interaction: Math.floor(Date.now() / 1000),
-            streak: Number(previousAikoData.streak.toString()),
-            evolution_stage: getEvolutionStage(previousAikoData.level),
-            userName: previousAikoData.userName || '',
-            userCountry: previousAikoData.userCountry || '',
-            memoryFlags: previousAikoData.memoryFlags || 0
-          },
-          messages.slice(-10).map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'assistant',
-            content: msg.text
-          }))
-        ),
+        console.log("🚀 Starting smooth chat process...");
         
-        // Blockchain (lambat)
-        sendInteraction()
-      ]);
+        const previousAikoData = { ...aikoData };
+        
+        const [response, txSignature] = await Promise.all([
+        deepseekService.chat(...), // AI Response
+        sendInteraction() // Blockchain
+        ]);
 
-      console.log("✅ Both AI and blockchain completed");
+        // ✅ TAMPILKAN AIKO RESPONSE (instant)
+        addAikoMessage(response.text, response.emotion as any, response.emoji);
 
-      // ✅ TAMPILKAN AIKO RESPONSE (instant)
-      addAikoMessage(
-        response.text, 
-        response.emotion as any,
-        response.emoji
-      );
-
-      // ✅ BACKGROUND SYNC (tanpa re-render chat)
-      setTimeout(async () => {
+        // ✅ DEBOUNCED BACKGROUND UPDATE (5 detik kemudian)
+        setTimeout(async () => {
         try {
-          const updatedAiko = await solanaService.getAIKO(wallet);
-          if (updatedAiko) {
-            // ✅ HANYA update jika ada perubahan penting
-            if (previousAikoData.level !== updatedAiko.level) {
-              showNotification(`🎉 Level Up! Level ${updatedAiko.level}!`);
+            const updatedAiko = await solanaService.getAIKO(wallet);
+            if (updatedAiko && previousAikoData.level !== updatedAiko.level) {
+            showNotification(`🎉 Level Up! Level ${updatedAiko.level}!`);
+            // User sudah selesai chat, jadi scroll reset tidak masalah
+            setAikoData(updatedAiko);
             }
-            // ✅ UPDATE STATE TANPA RE-RENDER CHAT (partial update)
-            setAikoData(prev => prev ? {
-              ...prev,
-              level: updatedAiko.level,
-              xp: updatedAiko.xp,
-              streak: updatedAiko.streak,
-              totalInteractions: updatedAiko.totalInteractions,
-              lastInteraction: updatedAiko.lastInteraction
-            } : null);
-          }
         } catch (error) {
-          console.error("Background sync failed:", error);
+            console.error("Background sync failed:", error);
         }
-      }, 500);
+        }, 5000); // ✅ UPDATE SETELAH 5 DETIK (user sudah selesai chat)
 
     } catch (error: any) {
-      console.error('❌ Chat failed:', error);
-      
-      // ✅ ERROR HANDLING yang tidak ganggu UX
-      addAikoMessage(
+        console.error('❌ Chat failed:', error);
+        addAikoMessage(
         error.message?.includes('user rejected') 
-          ? "Okay, no problem! We can chat without saving to blockchain! 💕"
-          : "Oops! Something went wrong... 😅 Let's try again!",
+            ? "Okay, no problem! We can chat without saving to blockchain! 💕"
+            : "Oops! Something went wrong... 😅 Let's try again!",
         'sad',
         error.message?.includes('user rejected') ? '😊' : '💔'
-      );
+        );
     } finally {
-      setLoading(false);
-      
-      // ✅ FOCUS INPUT (smooth)
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 50);
+        setLoading(false);
+        setTimeout(() => inputRef.current?.focus(), 50);
     }
-  };
+    };
 
   // Helper functions
   const getEvolutionStage = (level: number): 'egg' | 'hatchling' | 'companion' | 'soulmate' => {
