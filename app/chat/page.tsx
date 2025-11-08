@@ -62,14 +62,11 @@ export default function ChatPage() {
   
   // ✅ PERBAIKI: Scroll system yang lebih robust
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
-    console.log("🔄 Scrolling to bottom...");
     requestAnimationFrame(() => {
       // Method 1: Scroll container langsung (paling reliable)
       if (chatContainerRef.current) {
         const container = chatContainerRef.current;
         const targetScroll = container.scrollHeight - container.clientHeight;
-        
-        console.log(`📊 Scroll info: current=${container.scrollTop}, target=${targetScroll}`);
         
         if (Math.abs(container.scrollTop - targetScroll) > 10) {
           container.scrollTo({
@@ -94,7 +91,6 @@ export default function ChatPage() {
 
   // ✅ SCROLL EFFECT: Trigger ketika messages berubah atau page load
   useEffect(() => {
-    console.log("🎯 Initial scroll to bottom");
     const timer = setTimeout(() => {
       scrollToBottom('auto');
     }, 500);
@@ -105,7 +101,6 @@ export default function ChatPage() {
   // ✅ SCROLL ketika ada message baru
   useEffect(() => {
     if (messages.length > 0) {
-      console.log(`📨 New message detected, total: ${messages.length}`);
       const timer = setTimeout(() => {
         scrollToBottom('smooth');
       }, 100);
@@ -128,11 +123,6 @@ export default function ChatPage() {
         setAikoData(data);
         
         const needsOnboarding = !data.userName || !data.userCountry;
-        console.log("🧠 Memory check:", { 
-          userName: data.userName, 
-          userCountry: data.userCountry,
-          needsOnboarding 
-        });
         
         if (needsOnboarding) {
           setTimeout(() => {
@@ -371,7 +361,7 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // ✅ PERBAIKI: handleSend TANPA REFRESH dengan flow yang benar
+  // ✅ PERBAIKI TOTAL: handleSend TANPA REFRESH SAMA SEKALI
   const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
@@ -388,42 +378,24 @@ export default function ChatPage() {
     try {
       console.log("🚀 Starting NO-REFRESH chat process...");
       
-      // ✅ 3. PROSES SEQUENTIAL: Wallet signature DULU, baru AI chat
-      let txSignature;
-      let walletSuccess = false;
+      // ✅ 3. SIMPAN DATA SEBELUM untuk AI chat
+      const previousAikoData = { ...aikoData };
       
-      try {
-        // ✅ Wallet popup muncul di sini - TANPA REFRESH
-        console.log("🔄 Waiting for wallet signature...");
-        txSignature = await sendInteraction();
-        walletSuccess = true;
-        console.log("✅ Wallet signed:", txSignature);
-      } catch (error: any) {
-        if (error.message?.includes('user rejected')) {
-          // User cancel wallet, tetap lanjut chat tanpa blockchain
-          console.log("ℹ️ User rejected wallet, continuing chat without blockchain");
-          walletSuccess = false;
-        } else {
-          console.error("❌ Wallet error:", error);
-          throw new Error("Wallet transaction failed");
-        }
-      }
-
-      // ✅ 4. PROSES AI CHAT SETELAH WALLET (atau jika user reject)
+      // ✅ 4. PROSES AI CHAT DULU (instant response)
       console.log("🤖 Getting AI response...");
       const response = await deepseekService.chat(
         userMessage, 
         {
-          owner: aikoData.owner.toBase58(),
-          level: aikoData.level,
-          xp: Number(aikoData.xp.toString()),
-          total_interactions: Number(aikoData.totalInteractions.toString()) + (walletSuccess ? 1 : 0),
+          owner: previousAikoData.owner.toBase58(),
+          level: previousAikoData.level,
+          xp: Number(previousAikoData.xp.toString()),
+          total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
           last_interaction: Math.floor(Date.now() / 1000),
-          streak: Number(aikoData.streak.toString()),
-          evolution_stage: getEvolutionStage(aikoData.level),
-          userName: aikoData.userName || '',
-          userCountry: aikoData.userCountry || '',
-          memoryFlags: aikoData.memoryFlags || 0
+          streak: Number(previousAikoData.streak.toString()),
+          evolution_stage: getEvolutionStage(previousAikoData.level),
+          userName: previousAikoData.userName || '',
+          userCountry: previousAikoData.userCountry || '',
+          memoryFlags: previousAikoData.memoryFlags || 0
         },
         messages.slice(-10).map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
@@ -434,7 +406,29 @@ export default function ChatPage() {
       // ✅ 5. INSTANT: Tampilkan AIKO response - TANPA REFRESH
       addAikoMessage(response.text, response.emotion as any, response.emoji);
 
-      // ✅ 6. UPDATE UI DATA secara manual jika wallet success - TANPA REFRESH
+      // ✅ 6. PROSES WALLET SETELAH AI RESPONSE (background)
+      let txSignature;
+      let walletSuccess = false;
+      
+      try {
+        // ✅ Wallet popup muncul di sini - TANPA REFRESH
+        console.log("🔄 Processing wallet transaction in background...");
+        txSignature = await sendInteraction();
+        walletSuccess = true;
+        console.log("✅ Wallet signed:", txSignature);
+      } catch (error: any) {
+        if (error.message?.includes('user rejected')) {
+          // User cancel wallet, tetap lanjut chat tanpa blockchain update
+          console.log("ℹ️ User rejected wallet, chat continues without blockchain update");
+          walletSuccess = false;
+        } else {
+          console.error("❌ Wallet error:", error);
+          // Tetap lanjut, hanya tampilkan error kecil
+          showNotification('⚠️ Transaction failed, but chat saved locally');
+        }
+      }
+
+      // ✅ 7. UPDATE UI DATA secara manual jika wallet success - TANPA REFRESH
       if (walletSuccess && txSignature) {
         setAikoData(prev => {
           if (!prev) return prev;
@@ -454,22 +448,18 @@ export default function ChatPage() {
         showNotification('✅ +10 XP earned!');
       }
 
-      // ✅ 7. SMOOTH SCROLL ke response AIKO
+      // ✅ 8. SMOOTH SCROLL ke response AIKO
       setTimeout(() => scrollToBottom('smooth'), 100);
 
     } catch (error: any) {
       console.error('❌ Chat failed:', error);
       
       // ✅ ERROR HANDLING: Tetap tampilkan error message tanpa refresh
-      const errorMessage = error.message?.includes('user rejected') 
-        ? "Okay, no problem! We can chat without saving to blockchain! 💕"
-        : error.message?.includes('Wallet transaction failed')
-        ? "Wallet transaction failed... 😅 Let's try again!"
-        : "Oops! Something went wrong... 😅 Let's try again!";
-        
-      const errorEmoji = error.message?.includes('user rejected') ? '😊' : '💔';
-      
-      addAikoMessage(errorMessage, 'sad', errorEmoji);
+      addAikoMessage(
+        "Oops! Something went wrong... 😅 Let's try again!",
+        'sad',
+        '💔'
+      );
       
       setTimeout(() => scrollToBottom('smooth'), 100);
     } finally {
@@ -485,8 +475,6 @@ export default function ChatPage() {
 
   // Helper functions
   const calculateLevel = (xp: number): number => {
-    // Logic level calculation sesuai dengan smart contract
-    // Contoh: 100 XP per level
     return Math.floor(xp / 100) + 1;
   };
 
