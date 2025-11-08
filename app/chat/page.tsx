@@ -27,6 +27,8 @@ export default function ChatPage() {
   const [aikoLoading, setAikoLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
+
   const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false); 
   const [errorType, setErrorType] = useState<'balance' | 'generic' | null>(null);
  
@@ -729,20 +731,44 @@ export default function ChatPage() {
                 <span className="text-orange-400 font-bold">🔥 {aikoData.streak.toString()}</span>
               </div>
 
-              {/* ✅ FIX: Achievement Button with proper z-index */}
-              <div className="relative z-40">
-                <AchievementSystem 
-                  aikoData={aikoData}
-                  knowsName={knowsName}
-                  knowsCountry={knowsCountry}
-                />
-              </div>
+            <button
+            onClick={() => setShowAchievements(true)}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors group relative"
+            title="Achievements"
+            >
+            <svg className="w-6 h-6 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+            </svg>
+            {/* Badge counter */}
+            {(() => {
+                const unlockedCount = [
+                Number(aikoData.totalInteractions.toString()) >= 1,
+                Number(aikoData.totalInteractions.toString()) >= 10,
+                Number(aikoData.streak.toString()) >= 7,
+                Number(aikoData.streak.toString()) >= 30,
+                aikoData.level >= 5,
+                aikoData.level >= 10,
+                aikoData.level >= 20,
+                knowsName && knowsCountry,
+                Number(aikoData.totalInteractions.toString()) >= 100,
+                Number(aikoData.xp.toString()) >= 1000,
+                true,
+                aikoData.level >= 50,
+                ].filter(Boolean).length;
+                
+                return unlockedCount > 0 && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-gray-900">
+                    {unlockedCount}
+                </div>
+                );
+            })()}
+            </button>
 
-              <button
-                onClick={() => setShowSettings(true)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
-                title="Memory Settings"
-              >
+            <button
+            onClick={() => setShowSettings(true)}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
+            title="Memory Settings"
+            >
                 <svg className="w-6 h-6 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -906,6 +932,16 @@ export default function ChatPage() {
           onClose={() => setShowSettings(false)}
         />
       )}  
+
+      
+      {showAchievements && aikoData && (
+        <AchievementSystem
+            aikoData={aikoData}
+            knowsName={knowsName}
+            knowsCountry={knowsCountry}
+            onClose={() => setShowAchievements(false)}
+        />
+        )}
     </div>
   );
 }
