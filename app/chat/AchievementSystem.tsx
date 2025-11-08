@@ -25,7 +25,7 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
-    // ✅ FIX: Client-side only check
+  // ✅ FIX: Client-side only check
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -121,7 +121,11 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
   const unlockedCount = achievements.filter(a => a.unlocked).length;
   const totalCount = achievements.length;
   const progress = (unlockedCount / totalCount) * 100;
+  
+  // ✅ FIX: Client-side only check untuk hasNewAchievement
   const hasNewAchievement = isClient && achievements.some(a => a.unlocked);
+
+  // ✅ FIX: Client-side only check untuk free chat status
   const hasFreeChatAvailable = isClient && localStorage.getItem('aiko_free_chat_used') !== 'true';
 
   if (!isClient) {
@@ -136,6 +140,7 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
         </button>
       </div>
     );
+  } // ✅ FIX: TAMBAHKAN INI - tutup curly brace untuk if statement!
 
   return (
     <>
