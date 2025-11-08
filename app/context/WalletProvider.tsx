@@ -5,10 +5,7 @@ import { ReactNode, useMemo } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import {
-  PhantomWalletAdapter,
-  SolflareWalletAdapter,
-} from '@solana/wallet-adapter-wallets'; 
+
 import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack';
 
 // Butuh CSS untuk modal-nya
@@ -21,8 +18,7 @@ export const SolanaProvider = ({ children }: { children: ReactNode }) => {
   const wallets = useMemo(
     () => [
       new BackpackWalletAdapter(),
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
+
     ],
     []
   );
