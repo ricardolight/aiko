@@ -279,7 +279,7 @@ export default function ChatPage() {
   };
 
   // ✅ PERFECT: Zero visual change, smooth experience
-  const handleSend = async () => {
+    const handleSend = async () => {
     if (!input.trim() || loading || isProcessingRef.current || !aikoData || !publicKey || !provider) return;
 
     const userMessage = input.trim();
@@ -291,76 +291,88 @@ export default function ChatPage() {
     isProcessingRef.current = true;
 
     try {
-      // Get AI response immediately
-      const response = await deepseekService.chat(
+        // ✅ STEP 1: Sign wallet transaction FIRST
+        console.log("🔐 Step 1: Requesting wallet signature...");
+        await solanaService.interact(wallet);
+        console.log("✅ Wallet signed! Now getting AI response...");
+        
+        // ✅ STEP 2: Update local state optimistically
+        setAikoData(prev => {
+        if (!prev) return prev;
+        
+        const newXP = prev.xp.add(new BN(10));
+        const newLevel = Math.floor(Number(newXP.toString()) / 100) + 1;
+        const previousLevel = prev.level;
+        
+        // Show level up notification
+        if (newLevel > previousLevel) {
+            setTimeout(() => showNotification(`🎉 Level Up! Now Level ${newLevel}!`), 500);
+        }
+        
+        return {
+            ...prev,
+            totalInteractions: prev.totalInteractions.add(new BN(1)),
+            xp: newXP,
+            level: newLevel,
+            lastInteraction: new BN(Math.floor(Date.now() / 1000))
+        };
+        });
+
+        // ✅ STEP 3: Get AI response AFTER wallet signed
+        const response = await deepseekService.chat(
         userMessage, 
         {
-          owner: aikoData.owner.toBase58(),
-          level: aikoData.level,
-          xp: Number(aikoData.xp.toString()),
-          total_interactions: Number(aikoData.totalInteractions.toString()) + 1,
-          last_interaction: Math.floor(Date.now() / 1000),
-          streak: Number(aikoData.streak.toString()),
-          evolution_stage: getEvolutionStage(aikoData.level),
-          userName: aikoData.userName || '',
-          userCountry: aikoData.userCountry || '',
-          memoryFlags: aikoData.memoryFlags || 0
+            owner: aikoData.owner.toBase58(),
+            level: aikoData.level,
+            xp: Number(aikoData.xp.toString()) + 10, // Use updated XP
+            total_interactions: Number(aikoData.totalInteractions.toString()) + 1, // Use updated count
+            last_interaction: Math.floor(Date.now() / 1000),
+            streak: Number(aikoData.streak.toString()),
+            evolution_stage: getEvolutionStage(aikoData.level),
+            userName: aikoData.userName || '',
+            userCountry: aikoData.userCountry || '',
+            memoryFlags: aikoData.memoryFlags || 0
         },
         messages.slice(-10).map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.text
+            role: msg.sender === 'user' ? 'user' : 'assistant',
+            content: msg.text
         }))
-      );
+        );
 
-      // Show AIKO response instantly
-      addAikoMessage(response.text, response.emotion as any, response.emoji);
-
-      // ✅ BACKGROUND: Wallet sign happens silently
-      setTimeout(async () => {
-        try {
-          await solanaService.interact(wallet);
-          
-          // ✅ SILENT UPDATE: No re-render, just state change
-          setAikoData(prev => {
-            if (!prev) return prev;
-            
-            const newXP = prev.xp.add(new BN(10));
-            const newLevel = Math.floor(Number(newXP.toString()) / 100) + 1;
-            const previousLevel = prev.level;
-            
-            // Show level up notification only
-            if (newLevel > previousLevel) {
-              setTimeout(() => showNotification(`🎉 Level Up! Now Level ${newLevel}!`), 500);
-            }
-            
-            return {
-              ...prev,
-              totalInteractions: prev.totalInteractions.add(new BN(1)),
-              xp: newXP,
-              level: newLevel,
-              lastInteraction: new BN(Math.floor(Date.now() / 1000))
-            };
-          });
-          
-        } catch (error) {
-          // Silent fail - user doesn't need to know
-          console.log("Wallet transaction in background:", error);
-        }
-      }, 50);
+        // ✅ STEP 4: Show AIKO response
+        addAikoMessage(response.text, response.emotion as any, response.emoji);
+        showNotification('✅ +10 XP');
 
     } catch (error: any) {
-      console.error('Chat failed:', error);
-      addAikoMessage(
-        "Oops! Something went wrong... 😅",
-        'sad',
-        '💔'
-      );
+        console.error('❌ Transaction or chat failed:', error);
+        
+        // Better error handling
+        if (error.message?.includes('User rejected')) {
+        addAikoMessage(
+            "Oh, you cancelled the transaction! 😅 That's okay, try again when you're ready!",
+            'curious',
+            '🤔'
+        );
+        } else if (error.message?.includes('Insufficient balance')) {
+        addAikoMessage(
+            "Oops! You don't have enough SOL for gas fees. 😢 Please bridge some SOL from Sepolia!",
+            'sad',
+            '💸'
+        );
+        showNotification('💰 Low balance! Bridge SOL needed');
+        } else {
+        addAikoMessage(
+            "Oops! Something went wrong with the blockchain... 😅 Let's try again!",
+            'sad',
+            '💔'
+        );
+        }
     } finally {
-      setLoading(false);
-      isProcessingRef.current = false;
-      setTimeout(() => inputRef.current?.focus(), 50);
+        setLoading(false);
+        isProcessingRef.current = false;
+        setTimeout(() => inputRef.current?.focus(), 50);
     }
-  };
+    };
 
   const getEvolutionStage = (level: number): 'egg' | 'hatchling' | 'companion' | 'soulmate' => {
     if (level >= 20) return 'soulmate';
