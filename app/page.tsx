@@ -219,7 +219,7 @@ export default function Home() {
 
         {/* Main Content */}
         {activeTab === 'home' ? (
-          <HomeContent walletConnected={wallet.isConnected} setActiveTab={setActiveTab} isMobile={isMobile} />
+          <HomeContent walletConnected={wallet.connected} setActiveTab={setActiveTab} isMobile={isMobile} />
         ) : (
           <DashboardContent 
             globalStats={globalStats}
