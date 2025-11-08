@@ -10,6 +10,7 @@ import { useWallet } from '@/app/context/WalletProvider';
 import WelcomeOnboarding from '@/components/WelcomeOnboarding';
 import MemorySettings from '@/components/MemorySettings';
 import AchievementSystem from './AchievementSystem';
+import * as anchor from '@project-serum/anchor'; // ✅ TAMBAHKAN IMPORT
 
 // Custom hook untuk blockchain service
 const useBlockchainService = () => {
@@ -37,50 +38,54 @@ const useBlockchainService = () => {
 };
 
 export default function ChatPage() {
-  const wallet = useWallet();
-  const { isConnected, address: walletAddress, provider, connectWallet, publicKey } = wallet;
-  
-  const [messages, addMessage, clearChatHistory, chatUtils] = useChatHistory(walletAddress || '');
-  const { sendInteraction } = useBlockchainService();
+    const wallet = useWallet();
+    const { isConnected, address: walletAddress, provider, connectWallet, publicKey } = wallet;
+    
+    const [messages, addMessage, clearChatHistory, chatUtils] = useChatHistory(walletAddress || '');
+    const { sendInteraction } = useBlockchainService();
 
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [aikoData, setAikoData] = useState<AikoAccount | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [notification, setNotification] = useState<string | null>(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [aikoLoading, setAikoLoading] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false); 
-  const [errorType, setErrorType] = useState<'balance' | 'generic' | null>(null);
- 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+    const [input, setInput] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [aikoData, setAikoData] = useState<AikoAccount | null>(null);
+    const [showSidebar, setShowSidebar] = useState(true);
+    const [notification, setNotification] = useState<string | null>(null);
+    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const [isInitializing, setIsInitializing] = useState(false);
+    const [aikoLoading, setAikoLoading] = useState(false);
+    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false); 
+    const [errorType, setErrorType] = useState<'balance' | 'generic' | null>(null);
+    
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
   
-  // ✅ Optimized scroll system
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
-    requestAnimationFrame(() => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ 
-          behavior,
-          block: 'nearest'
-        });
-      }
-    });
-  }, []);
+    // ✅ PERBAIKI: Scroll system yang lebih smooth
+    const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
+      requestAnimationFrame(() => {
+        // Prioritaskan chatContainerRef untuk scroll
+        if (chatContainerRef.current) {
+          const container = chatContainerRef.current;
+          container.scrollTop = container.scrollHeight;
+        }
+        // Fallback ke messagesEndRef
+        else if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ 
+            behavior,
+            block: 'end'
+          });
+        }
+      });
+    }, []);
 
-  // ✅ Stable scroll effect
+    // ✅ SCROLL EFFECT: Trigger hanya ketika messages bertambah
     useEffect(() => {
-    if (messages.length > 0) {
-        // Scroll ke bottom dengan delay sedikit agar UI sudah fully rendered
-        setTimeout(() => {
-        scrollToBottom('auto');
-        }, 500);
-    }
-    }, []); 
+      if (messages.length > 0) {
+        // Gunakan timeout kecil untuk memastikan DOM sudah update
+        setTimeout(() => scrollToBottom('auto'), 50);
+      }
+    }, [messages.length, scrollToBottom]);
 
   // ✅ FIX: Define loadAikoData dengan useCallback
   const loadAikoData = useCallback(async () => {
@@ -340,67 +345,125 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-    // ✅ FIXED: handleSend tanpa background sync yang cause refresh
-    const handleSend = async () => {
+  // ✅ PERBAIKI: handleSend dengan flow yang benar dan error handling yang robust
+  const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
     const userMessage = input.trim();
     setInput('');
     
-    // ✅ TAMPILKAN USER MESSAGE (instant)
+    // ✅ 1. INSTANT: Tampilkan user message
     addUserMessage(userMessage);
     setLoading(true);
+    
+    // ✅ 2. INSTANT: Scroll ke bottom untuk user message
+    setTimeout(() => scrollToBottom('smooth'), 0);
 
     try {
-        console.log("🚀 Starting smooth chat process...");
-        
-        const previousAikoData = { ...aikoData };
-        
-        const [response, txSignature] = await Promise.all([
-        deepseekService.chat(
-            userMessage, 
-            {
-            owner: previousAikoData.owner.toBase58(),
-            level: previousAikoData.level,
-            xp: Number(previousAikoData.xp.toString()),
-            total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
-            last_interaction: Math.floor(Date.now() / 1000),
-            streak: Number(previousAikoData.streak.toString()),
-            evolution_stage: getEvolutionStage(previousAikoData.level),
-            userName: previousAikoData.userName || '',
-            userCountry: previousAikoData.userCountry || '',
-            memoryFlags: previousAikoData.memoryFlags || 0
-            },
-            messages.slice(-10).map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'assistant',
-            content: msg.text
-            }))
-        ),
-        sendInteraction()
-        ]);
+      console.log("🚀 Starting sequential chat process...");
+      
+      // ✅ 3. PROSES SEQUENTIAL: Wallet signature DULU, baru AI chat
+      let txSignature;
+      let walletSuccess = false;
+      
+      try {
+        // ✅ Wallet popup muncul di sini
+        console.log("🔄 Waiting for wallet signature...");
+        txSignature = await sendInteraction();
+        walletSuccess = true;
+        console.log("✅ Wallet signed:", txSignature);
+      } catch (error: any) {
+        if (error.message?.includes('user rejected')) {
+          // User cancel wallet, tetap lanjut chat tanpa blockchain
+          console.log("ℹ️ User rejected wallet, continuing chat without blockchain");
+          walletSuccess = false;
+        } else {
+          console.error("❌ Wallet error:", error);
+          throw new Error("Wallet transaction failed");
+        }
+      }
 
-        // ✅ TAMPILKAN AIKO RESPONSE (instant)
-        addAikoMessage(response.text, response.emotion as any, response.emoji);
+      // ✅ 4. PROSES AI CHAT SETELAH WALLET (atau jika user reject)
+      console.log("🤖 Getting AI response...");
+      const response = await deepseekService.chat(
+        userMessage, 
+        {
+          owner: aikoData.owner.toBase58(),
+          level: aikoData.level,
+          xp: Number(aikoData.xp.toString()),
+          total_interactions: Number(aikoData.totalInteractions.toString()) + (walletSuccess ? 1 : 0),
+          last_interaction: Math.floor(Date.now() / 1000),
+          streak: Number(aikoData.streak.toString()),
+          evolution_stage: getEvolutionStage(aikoData.level),
+          userName: aikoData.userName || '',
+          userCountry: aikoData.userCountry || '',
+          memoryFlags: aikoData.memoryFlags || 0
+        },
+        messages.slice(-10).map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        }))
+      );
 
-        // ✅ HAPUS BACKGROUND SYNC YANG CAUSE REFRESH
-        // Data akan update ketika user refresh page manual
+      // ✅ 5. INSTANT: Tampilkan AIKO response
+      addAikoMessage(response.text, response.emotion as any, response.emoji);
+
+      // ✅ 6. UPDATE UI DATA secara manual jika wallet success
+      if (walletSuccess && txSignature) {
+        setAikoData(prev => {
+          if (!prev) return prev;
+          
+          const newXP = prev.xp.add(10); // +10 XP per interaction
+          const newLevel = calculateLevel(Number(newXP.toString()));
+          
+          return {
+            ...prev,
+            totalInteractions: prev.totalInteractions.add(1),
+            xp: newXP,
+            level: newLevel,
+            lastInteraction: new anchor.BN(Math.floor(Date.now() / 1000))
+          };
+        });
+        
+        showNotification('✅ +10 XP earned!');
+      }
+
+      // ✅ 7. SMOOTH SCROLL ke response AIKO
+      setTimeout(() => scrollToBottom('smooth'), 100);
 
     } catch (error: any) {
-        console.error('❌ Chat failed:', error);
-        addAikoMessage(
-        error.message?.includes('user rejected') 
-            ? "Okay, no problem! We can chat without saving to blockchain! 💕"
-            : "Oops! Something went wrong... 😅 Let's try again!",
-        'sad',
-        error.message?.includes('user rejected') ? '😊' : '💔'
-        );
+      console.error('❌ Chat failed:', error);
+      
+      // ✅ ERROR HANDLING: Tetap tampilkan error message
+      const errorMessage = error.message?.includes('user rejected') 
+        ? "Okay, no problem! We can chat without saving to blockchain! 💕"
+        : error.message?.includes('Wallet transaction failed')
+        ? "Wallet transaction failed... 😅 Let's try again!"
+        : "Oops! Something went wrong... 😅 Let's try again!";
+        
+      const errorEmoji = error.message?.includes('user rejected') ? '😊' : '💔';
+      
+      addAikoMessage(errorMessage, 'sad', errorEmoji);
+      
+      setTimeout(() => scrollToBottom('smooth'), 100);
     } finally {
-        setLoading(false);
-        setTimeout(() => inputRef.current?.focus(), 50);
+      setLoading(false);
+      
+      // ✅ FOCUS kembali ke input dan final scroll
+      setTimeout(() => {
+        inputRef.current?.focus();
+        scrollToBottom('smooth');
+      }, 150);
     }
-    };
+  };
 
   // Helper functions
+  const calculateLevel = (xp: number): number => {
+    // Logic level calculation sesuai dengan smart contract
+    // Contoh: 100 XP per level
+    return Math.floor(xp / 100) + 1;
+  };
+
   const getEvolutionStage = (level: number): 'egg' | 'hatchling' | 'companion' | 'soulmate' => {
     if (level >= 20) return 'soulmate';
     if (level >= 10) return 'companion';
@@ -819,10 +882,13 @@ export default function ChatPage() {
         </header>
 
         {/* Messages */}
-        <div 
-          ref={chatContainerRef}
-          className="flex-1 overflow-y-auto px-6 py-8 space-y-6"
-        >
+            <div 
+            ref={chatContainerRef}
+            className="flex-1 overflow-y-auto px-6 py-8 space-y-6 scroll-smooth"
+            style={{ 
+                overflowAnchor: 'auto' // ← Ini bantu auto-scroll behavior
+            }}
+            >
           <div className="max-w-4xl mx-auto space-y-6">
             <AnimatePresence>
               {stableMessages.map((message) => (

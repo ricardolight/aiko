@@ -136,11 +136,11 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
       {/* Popup Overlay */}
       {isPopupOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-70 flex items-start justify-end p-4 z-50"
+          className="fixed inset-0 bg-black bg-opacity-70 flex items-start justify-end p-4 z-[9999]"
           onClick={() => setIsPopupOpen(false)}
         >
           <div 
-            className="glass-card rounded-xl w-80 max-h-[80vh] overflow-hidden mt-16 animate-in slide-in-from-right-5 border border-white/10"
+            className="glass-card rounded-xl w-80 max-h-[80vh] overflow-hidden mt-16 animate-in slide-in-from-right-5 border border-white/10 z-[10000]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
