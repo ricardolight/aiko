@@ -7,13 +7,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { deepseekService } from '@/lib/deepseek';
 import { useChatHistory, Message } from '@/app/hooks/useChatHistory';
 import { useWallet } from '@/app/context/WalletProvider';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import WelcomeOnboarding from '@/components/WelcomeOnboarding';
 import MemorySettings from '@/components/MemorySettings';
 import AchievementSystem from '@/app/chat/AchievementSystem';
 
 export default function ChatPage() {
   const wallet = useWallet();
-  const { isConnected, address: walletAddress, provider, connectWallet, publicKey } = wallet;
+  // Ambil properti baru dari hook library
+  const { publicKey, connected: isConnected } = wallet;
+  const { setVisible } = useWalletModal();
+
+  // 1. Buat ulang 'walletAddress' dari 'publicKey'
+  const walletAddress = useMemo(() => publicKey?.toBase58(), [publicKey]);
+
+  // 2. Buat ulang 'provider' yang dibutuhkan oleh halaman ini
+  // (Pengecekan if (!provider) akan pakai ini)
+  const provider = useMemo(() => wallet.wallet?.adapter, [wallet.wallet]);
+
+  // 3. Buat ulang 'connectWallet' untuk membuka modal
+  const connectWallet = useCallback(() => {
+    setVisible(true);
+  }, [setVisible]);
   
   const [messages, addMessage] = useChatHistory(walletAddress || '');
 
@@ -418,16 +433,13 @@ export default function ChatPage() {
           <p className="text-purple-300 mb-8">
             You need to connect your wallet to chat with AIKO.
           </p>
-          <button
-            onClick={connectWallet}
-            className="group relative px-8 py-4 rounded-2xl transition-all"
-          >
+            <WalletModalButton className="group relative px-8 py-4 rounded-2xl transition-all">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl group-hover:shadow-2xl group-hover:shadow-purple-500/50 transition-all" />
             <div className="relative flex items-center gap-2 text-white font-semibold">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-              <span>Connect Wallet</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                <span>Connect Wallet</span>
             </div>
-          </button>
+            </WalletModalButton>
         </div>
       </div>
     );
