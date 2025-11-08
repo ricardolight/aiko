@@ -1,7 +1,8 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
-// 1. Import WalletProvider yang sudah kita buat
-import { WalletProvider } from "@/app/context/WalletProvider";
+// 1. Ganti impor dari WalletProvider menjadi SolanaProvider
+import { SolanaProvider } from "@/app/context/WalletProvider";
 
 export const metadata: Metadata = {
   title: "AIKO - Your AI Companion on CARV SVM",
@@ -22,11 +23,11 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
-      <body className="antialiased">
-        {/* 2. Bungkus {children} dengan WalletProvider */}
-        <WalletProvider>
+      <body className="antiasaLised">
+        {/* 2. Ganti bungkusnya menjadi SolanaProvider */}
+        <SolanaProvider>
           {children}
-        </WalletProvider>
+        </SolanaProvider>
       </body>
     </html>
   );

@@ -46,9 +46,10 @@ AIKO combines **DeepSeek AI** with **CARV SVM blockchain** to create a companion
 - **Level progression** stored permanently
 
 ### 🎮 Gamification
-- **Daily Streaks** - Come back every day to maintain your streak
-- **12 Achievement Badges** - Unlock milestones as you progress
-- **Leaderboard** - Compete with other trainers globally
+- **Daily Streaks** - Come back every day to maintain your streak 🔥
+- **12 Achievement Badges** - Unlock milestones across 4 categories (Milestone, Social, Dedication, Mastery) 🏆
+- **Global Leaderboard** - Check the [Live Dashboard](https://aiko-seven.vercel.app) to see top trainers and compete globally 📊
+- **XP System** - Earn 10 XP per interaction, level up from Egg to Soulmate ⭐
 
 ### 📊 Live Dashboard
 - **Real-time statistics** from CARV SVM blockchain
