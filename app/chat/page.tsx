@@ -1,22 +1,46 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { solanaService, AikoAccount } from '@/lib/svm-service'; 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { deepseekService } from '@/lib/deepseek';
-import { useChatHistory, Message, DeepSeekMessage } from '@/app/hooks/useChatHistory';
+import { useChatHistory, Message } from '@/app/hooks/useChatHistory';
 import { useWallet } from '@/app/context/WalletProvider';
-
 import WelcomeOnboarding from '@/components/WelcomeOnboarding';
 import MemorySettings from '@/components/MemorySettings';
 import AchievementSystem from './AchievementSystem';
 
+// Custom hook untuk blockchain service
+const useBlockchainService = () => {
+  const wallet = useWallet();
+  const isProcessing = useRef(false);
+
+  const sendInteraction = useCallback(async () => {
+    if (isProcessing.current) return null;
+    
+    isProcessing.current = true;
+    try {
+      console.log("🔐 Sending blockchain interaction...");
+      const signature = await solanaService.interact(wallet);
+      console.log("✅ Blockchain interaction completed:", signature);
+      return signature;
+    } catch (error) {
+      console.error("❌ Blockchain interaction failed:", error);
+      throw error;
+    } finally {
+      isProcessing.current = false;
+    }
+  }, [wallet]);
+
+  return { sendInteraction };
+};
 
 export default function ChatPage() {
   const wallet = useWallet();
   const { isConnected, address: walletAddress, provider, connectWallet, publicKey } = wallet;
-  const [messages, addMessage] = useChatHistory(walletAddress || '');
+  const { messages, addMessage, removeMessage } = useChatHistory(walletAddress || '');
+  const { sendInteraction } = useBlockchainService();
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,33 +50,33 @@ export default function ChatPage() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isInitializing, setIsInitializing] = useState(false);
   const [aikoLoading, setAikoLoading] = useState(false);
-  const [isSigning, setIsSigning] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false); 
   const [errorType, setErrorType] = useState<'balance' | 'generic' | null>(null);
+  const [lastUserMessageId, setLastUserMessageId] = useState<string | null>(null);
  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
-  // ✅ FIX: Scroll system yang stabil
+  // ✅ Optimized scroll system
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     requestAnimationFrame(() => {
       if (messagesEndRef.current) {
         messagesEndRef.current.scrollIntoView({ 
           behavior,
-          block: 'end'
+          block: 'nearest'
         });
       }
     });
   }, []);
 
-  // ✅ FIX: Scroll effect yang tidak trigger re-render
+  // ✅ Stable scroll effect
   useEffect(() => {
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
-      const shouldScroll = Date.now() - lastMessage.timestamp < 1000;
+      const shouldScroll = Date.now() - lastMessage.timestamp < 2000;
       
       if (shouldScroll) {
         scrollToBottom('smooth');
@@ -80,13 +104,12 @@ export default function ChatPage() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  // Onboarding check
   useEffect(() => {
     if (aikoData && hasCheckedOnboarding) {
       const needsOnboarding = !aikoData.userName || !aikoData.userCountry;
       
       if (needsOnboarding && !showOnboarding) {
-        console.log("🔄 Triggering onboarding from effect...");
-        // Delay sedikit untuk mencegah race condition
         const timer = setTimeout(() => {
           setShowOnboarding(true);
         }, 300);
@@ -100,7 +123,7 @@ export default function ChatPage() {
     if (!publicKey || !provider) return;
 
     setAikoLoading(true);
-    setErrorType(null); // Reset error
+    setErrorType(null);
     try {
       console.log("Loading AIKO data for:", publicKey.toBase58());
       
@@ -109,7 +132,6 @@ export default function ChatPage() {
       if (data) {
         setAikoData(data);
         
-        // ✅ FIX: Cek apakah perlu onboarding SETELAH data loaded
         const needsOnboarding = !data.userName || !data.userCountry;
         console.log("🧠 Memory check:", { 
           userName: data.userName, 
@@ -118,14 +140,11 @@ export default function ChatPage() {
         });
         
         if (needsOnboarding) {
-          console.log("🎯 Showing onboarding...");
-          // Tunggu sebentar agar UI stabil dulu
           setTimeout(() => {
             setShowOnboarding(true);
           }, 500);
         }
         
-        // Tambahkan welcome message hanya jika bukan baru initialize
         if (messages.length === 0 && !needsOnboarding) {
           const knowsName = (data.memoryFlags & 1) !== 0;
           const knowsCountry = (data.memoryFlags & 2) !== 0;
@@ -148,7 +167,6 @@ export default function ChatPage() {
     } catch (error: any) {
       console.error('Gagal memuat AIKO:', error);
       
-      // ✅ SET ERROR TYPE UNTUK UI
       if (error.message?.includes('Insufficient balance')) {
         setErrorType('balance');
         addAikoMessage(
@@ -165,7 +183,6 @@ export default function ChatPage() {
       if (error.message?.includes('Account does not exist')) {
         setIsInitializing(true);
       } else {
-        // Generic error
         addAikoMessage(
           "Hmm, something went wrong while loading my data... 😅 Please try refreshing the page!",
           'sad',
@@ -183,7 +200,7 @@ export default function ChatPage() {
 
     setIsInitializing(true);
     setLoading(true);
-    setErrorType(null); // ✅ RESET ERROR
+    setErrorType(null);
     
     try {
       console.log("Initializing AIKO account...");
@@ -203,7 +220,6 @@ export default function ChatPage() {
     } catch (error: any) {
       console.error("Gagal initialize AIKO:", error);
       
-      // ✅ HANDLE BALANCE ERROR DI INITIALIZE JUGA
       if (error.message?.includes('Insufficient balance')) {
         setErrorType('balance');
         addAikoMessage(
@@ -236,22 +252,17 @@ export default function ChatPage() {
       console.log('🧠 Saving memory to blockchain...', { name, country });
       setLoading(true);
       
-      // Save to blockchain
-      const flags = 0x03; // Binary: 00000011 (knows name + country)
+      const flags = 0x03;
       await solanaService.updateMemory(wallet, name, country, flags);
       
       console.log('✅ Memory saved! Waiting for confirmation...');
-      
-      // Wait for blockchain confirmation
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Reload AIKO data
       const updated = await solanaService.getAIKO(wallet);
       if (updated) {
         setAikoData(updated);
         setShowOnboarding(false);
         
-        // Add celebratory message
         addAikoMessage(
           `Yay! Nice to meet you, ${name}! 🎉 I'll remember you forever on the blockchain! 💕`,
           'excited',
@@ -274,7 +285,6 @@ export default function ChatPage() {
     }
   };
 
-  // Handle onboarding skip
   const handleOnboardingSkip = () => {
     console.log('⏭️ Onboarding skipped');
     setShowOnboarding(false);
@@ -286,17 +296,13 @@ export default function ChatPage() {
     );
   };
 
-  // Handle settings update
   const handleSettingsUpdate = async () => {
     if (!publicKey || !provider) return;
     
     try {
       console.log('🔄 Refreshing AIKO data after memory update...');
-      
-      // Wait a bit for blockchain confirmation
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Reload AIKO data
       const updated = await solanaService.getAIKO(wallet);
       if (updated) {
         setAikoData(updated);
@@ -339,6 +345,8 @@ export default function ChatPage() {
       timestamp: Date.now()
     };
     addMessage(newMessage);
+    setLastUserMessageId(newMessage.id);
+    return newMessage.id;
   };
 
   const showNotification = (text: string) => {
@@ -346,94 +354,134 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // ✅ FIX: handleSend yang lebih seamless - TANPA RE-RENDER
+  // ✅ FIXED: handleSend dengan Hybrid Approach
   const handleSend = async () => {
-    if (!input.trim() || loading || isSigning || !aikoData || !publicKey || !provider) return;
+    if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
     const userMessage = input.trim();
     setInput('');
     
-    // ✅ TAMBAHKAN USER MESSAGE (langsung muncul di UI)
-    addUserMessage(userMessage);
+    // ✅ TAMPILKAN USER MESSAGE
+    const userMessageId = addUserMessage(userMessage);
     setLoading(true);
-    setIsSigning(true);
 
     try {
-      console.log("🚀 Starting seamless chat process...");
+      console.log("🚀 Starting chat process...");
       
-      // ✅ JANGAN update aikoData state di sini (biarkan tetap)
-      const previousAikoData = { ...aikoData };
-      
-      // ✅ PARALLEL PROCESS: AI Response + Blockchain
-      const [response, txSignature] = await Promise.all([
-        // AI Response
-        deepseekService.chat(
-          userMessage, 
-          {
-            owner: previousAikoData.owner.toBase58(),
-            level: previousAikoData.level,
-            xp: Number(previousAikoData.xp.toString()),
-            total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
-            last_interaction: Math.floor(Date.now() / 1000),
-            streak: Number(previousAikoData.streak.toString()),
-            evolution_stage: getEvolutionStage(previousAikoData.level),
-            // ✅ ADD THESE THREE LINES:
-            userName: previousAikoData.userName || '',
-            userCountry: previousAikoData.userCountry || '',
-            memoryFlags: previousAikoData.memoryFlags || 0
-          },
-          messages.slice(-10).map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'assistant',
-            content: msg.text
-          }))
-        ),
-        
-        // Blockchain Transaction (wallet sign akan muncul di sini)
-        solanaService.interact(wallet)
-      ]);
-      
-      console.log("Transaksi terkirim:", txSignature);
+      // ✅ BLOCKCHAIN FIRST - user harus sign dulu
+      console.log("🔐 Waiting for wallet signature...");
+      const txSignature = await sendInteraction();
+      console.log("✅ Transaction signed:", txSignature);
 
-      // ✅ TAMBAHKAN AIKO RESPONSE (langsung muncul di UI)
+      // ✅ ONLY AFTER BLOCKCHAIN SUCCESS, lanjut ke AI
+      console.log("🤖 Getting AI response...");
+      const response = await deepseekService.chat(
+        userMessage, 
+        {
+          owner: aikoData.owner.toBase58(),
+          level: aikoData.level,
+          xp: Number(aikoData.xp.toString()),
+          total_interactions: Number(aikoData.totalInteractions.toString()) + 1,
+          last_interaction: Math.floor(Date.now() / 1000),
+          streak: Number(aikoData.streak.toString()),
+          evolution_stage: getEvolutionStage(aikoData.level),
+          userName: aikoData.userName || '',
+          userCountry: aikoData.userCountry || '',
+          memoryFlags: aikoData.memoryFlags || 0
+        },
+        messages.slice(-10).map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        }))
+      );
+
+      // ✅ TAMPILKAN AIKO RESPONSE
       addAikoMessage(
         response.text, 
         response.emotion as any,
         response.emoji
       );
 
-      // ✅ BACKGROUND UPDATE: Update data tanpa re-render chat
+      // ✅ BACKGROUND SYNC DATA
       setTimeout(async () => {
         try {
           const updatedAiko = await solanaService.getAIKO(wallet);
           if (updatedAiko) {
-            // Cek level up (hanya show notification, tidak reset state)
-            if (previousAikoData.level < updatedAiko.level) {
-              showNotification(`🎉 Level Up! Kamu sekarang Level ${updatedAiko.level}!`);
+            if (aikoData.level < updatedAiko.level) {
+              showNotification(`🎉 Level Up! Level ${updatedAiko.level}!`);
             }
-            
-            // ✅ UPDATE AIKO DATA TANPA RE-RENDER CHAT
             setAikoData(updatedAiko);
           }
         } catch (error) {
-          console.error("Background update failed:", error);
+          console.error("Background sync failed:", error);
         }
       }, 1000);
 
     } catch (error: any) {
-      console.error('Failed to send message:', error);
-      addAikoMessage(
-        "Oh no! Something went wrong... 😢 Please check your connection and try again.",
-        'sad',
-        '💔'
-      );
+      console.error('❌ Chat failed:', error);
+      
+      // ✅ HYBRID APPROACH: Handle rejection dengan free chat
+      if (error.message?.includes('user rejected') || error.message?.includes('denied')) {
+        const hasFreeChat = localStorage.getItem('aiko_free_chat_used') !== 'true';
+        
+        if (hasFreeChat) {
+          // ✅ KASIH 1 FREE CHAT
+          localStorage.setItem('aiko_free_chat_used', 'true');
+          
+          const response = await deepseekService.chat(
+            userMessage, 
+            {
+              owner: aikoData.owner.toBase58(),
+              level: aikoData.level,
+              xp: Number(aikoData.xp.toString()),
+              total_interactions: Number(aikoData.totalInteractions.toString()), // ❌ No increment
+              last_interaction: Math.floor(Date.now() / 1000),
+              streak: Number(aikoData.streak.toString()),
+              evolution_stage: getEvolutionStage(aikoData.level),
+              userName: aikoData.userName || '',
+              userCountry: aikoData.userCountry || '',
+              memoryFlags: aikoData.memoryFlags || 0
+            },
+            messages.slice(-10).map(msg => ({
+              role: msg.sender === 'user' ? 'user' : 'assistant',
+              content: msg.text
+            }))
+          );
+          
+          addAikoMessage(
+            response.text + "\n\n💡 *This is your free demo chat! Next time please sign to earn XP and level up!* 🌟",
+            response.emotion as any,
+            response.emoji
+          );
+          
+          showNotification('🎁 Free demo chat - Sign next time for XP!');
+          
+        } else {
+          // ✅ SETELAH FREE CHAT HABIS, BLOCK DENGAN EDUCATIONAL MESSAGE
+          addAikoMessage(
+            `I can't continue without your signature! 🔒\n\n**Signing is required to:**\n• Earn 10 XP per chat 🌟\n• Increase your daily streak 🔥  \n• Unlock my evolution stages 🐣🌸✨\n• Save our progress on-chain forever! ⛓️\n\n*Please click send again and approve the transaction!* 💕`,
+            'sad', 
+            '🚫'
+          );
+          
+          showNotification('🔒 Signature required to continue chatting');
+        }
+        
+      } else {
+        // ✅ OTHER ERRORS
+        addAikoMessage(
+          "Oops! Something went wrong with the transaction... 😅 Let's try again!",
+          'sad',
+          '💔'
+        );
+      }
     } finally {
       setLoading(false);
-      setIsSigning(false);
       
-      // ✅ FOCUS INPUT SETELAH SEMUA SELESAI (tanpa reset scroll)
+      // ✅ FOCUS INPUT
       setTimeout(() => {
         inputRef.current?.focus();
-      }, 100);
+      }, 50);
     }
   };
 
@@ -464,6 +512,7 @@ export default function ChatPage() {
     };
     return gradients[stage];
   };
+
 
   // Loading states
   if (!isConnected) {
@@ -621,7 +670,14 @@ export default function ChatPage() {
   const currentLevel = aikoData.level;
   const knowsName = (aikoData.memoryFlags & 1) !== 0;
   const knowsCountry = (aikoData.memoryFlags & 2) !== 0;
-  
+    
+  // Use memo untuk stable messages reference
+  const stableMessages = useMemo(() => messages, [messages.length]);
+
+  // Check free chat status untuk UI indicator
+  const hasFreeChatAvailable = localStorage.getItem('aiko_free_chat_used') !== 'true';
+
+
   return (
     <div className="relative flex h-screen overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
       {/* Background Effects */}
@@ -780,7 +836,7 @@ export default function ChatPage() {
         )}
       </AnimatePresence>
 
-      {/* Main Chat Area */}
+     {/* Main Chat Area */}
       <div className="relative flex-1 flex flex-col z-10">
         {/* Header */}
         <header className="glass-card border-b border-white/10 px-6 py-4">
@@ -823,11 +879,11 @@ export default function ChatPage() {
               </div>
 
               {/* ✅ ACHIEVEMENT BUTTON */}
-                <AchievementSystem 
-                  aikoData={aikoData}
-                  knowsName={knowsName}
-                  knowsCountry={knowsCountry}
-                />
+              <AchievementSystem 
+                aikoData={aikoData}
+                knowsName={knowsName}
+                knowsCountry={knowsCountry}
+              />
 
               {/* ✅ SETTINGS BUTTON */}
               <button
@@ -860,9 +916,9 @@ export default function ChatPage() {
         >
           <div className="max-w-4xl mx-auto space-y-6">
             <AnimatePresence>
-              {messages.map((message) => (
+              {stableMessages.map((message) => (
                 <motion.div
-                  key={message.id} // ✅ STABLE KEYS - TIDAK BERUBAH
+                  key={message.id}
                   initial={{ opacity: 0, y: 20, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
@@ -870,14 +926,12 @@ export default function ChatPage() {
                   className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div className={`flex items-end gap-3 max-w-[85%] ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {/* Avatar for AIKO */}
                     {message.sender === 'aiko' && (
                       <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getEvolutionGradient(currentStage)} flex items-center justify-center text-xl flex-shrink-0 animate-float shadow-lg`}>
                         {getEvolutionEmoji(currentStage)}
                       </div>
                     )}
 
-                    {/* Message Bubble */}
                     <div className="flex flex-col">
                       <div
                         className={`px-5 py-4 rounded-3xl backdrop-blur-xl ${
@@ -951,19 +1005,19 @@ export default function ChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 placeholder="Message AIKO..."
-                disabled={loading || isSigning}
+                disabled={loading}
                 className="flex-1 px-6 py-4 glass rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all disabled:opacity-50"
               />
               <button
                 onClick={handleSend}
-                disabled={loading || isSigning || !input.trim()}
+                disabled={loading || !input.trim()}
                 className="group relative px-8 py-4 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl transition-all ${
-                  isSigning ? 'animate-pulse' : 'group-hover:shadow-2xl group-hover:shadow-purple-500/50'
+                  loading ? 'animate-pulse' : 'group-hover:shadow-2xl group-hover:shadow-purple-500/50'
                 }`} />
                 <div className="relative flex items-center gap-2 text-white font-semibold">
-                  {isSigning ? (
+                  {loading ? (
                     <>
                       <motion.div
                         animate={{ rotate: 360 }}
@@ -972,7 +1026,7 @@ export default function ChatPage() {
                       >
                         ⏳
                       </motion.div>
-                      <span className="hidden sm:inline">Signing...</span>
+                      <span className="hidden sm:inline">Processing...</span>
                     </>
                   ) : (
                     <>
@@ -986,9 +1040,19 @@ export default function ChatPage() {
               </button>
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-              <span>Press Enter to send</span>
-              <span>{aikoData.totalInteractions.toString()} messages • +10 XP per chat</span>
+            {/* ✅ UPDATED: Signing requirement indicator */}
+            <div className="mt-3 flex items-center justify-between text-xs">
+              <span className="text-gray-400">Press Enter to send</span>
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1 text-gray-400">
+                  <span>💬</span>
+                  <span>{aikoData.totalInteractions.toString()} signed messages</span>
+                </span>
+                <span className={`flex items-center gap-1 ${hasFreeChatAvailable ? 'text-yellow-400' : 'text-orange-400'}`}>
+                  <span>{hasFreeChatAvailable ? '🎁' : '🔒'}</span>
+                  <span>{hasFreeChatAvailable ? '1 free chat available' : 'Signing required for XP'}</span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
