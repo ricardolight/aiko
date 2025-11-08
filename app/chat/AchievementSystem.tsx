@@ -126,26 +126,26 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
           className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
           title="Achievements"
         >
-          <span className="text-2xl group-hover:scale-110 transition-transform">🏆</span>
+          <span className="text-2xl group-hover:scale-110 transition-transform inline-block">🏆</span>
         </button>
         {hasNewAchievement && (
           <div className="absolute top-1 right-1 w-3 h-3 bg-orange-400 rounded-full border-2 border-gray-900 animate-pulse"></div>
         )}
       </div>
 
-      {/* Popup Overlay */}
+      {/* ✅ FIXED: Popup Overlay with proper z-index */}
       {isPopupOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-70 flex items-start justify-end p-4 z-[99999]"
+          className="fixed inset-0 bg-black/70 flex items-start justify-end p-4 z-[100]"
           onClick={() => setIsPopupOpen(false)}
         >
           <div 
-            className="glass-card rounded-xl w-80 max-h-[80vh] overflow-hidden mt-16 animate-in slide-in-from-right-5 border border-white/10 z-[100000]"
+            className="glass-card rounded-xl w-80 max-h-[80vh] overflow-hidden mt-16 mr-4 animate-in slide-in-from-right-5 border border-white/10 z-[101]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex justify-between items-center p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
-              <h2 className="text-lg font-bold text-white">Achievements</h2>
+              <h2 className="text-lg font-bold text-white">🏆 Achievements</h2>
               <button 
                 onClick={() => setIsPopupOpen(false)}
                 className="text-gray-400 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
@@ -160,7 +160,7 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
                 <span className="font-medium text-gray-300">
                   {unlockedCount} of {totalCount} unlocked
                 </span>
-                <span className="text-purple-300">{Math.round(progress)}%</span>
+                <span className="text-purple-300 font-bold">{Math.round(progress)}%</span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2.5">
                 <div 
@@ -186,10 +186,10 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className={`text-2xl p-2 rounded-lg ${
+                      <div className={`text-2xl p-2 rounded-lg flex-shrink-0 ${
                         achievement.unlocked 
                           ? 'bg-yellow-500/20 ring-1 ring-yellow-500/30' 
-                          : 'bg-gray-700'
+                          : 'bg-gray-700 grayscale'
                       }`}>
                         {achievement.icon}
                       </div>
@@ -203,12 +203,30 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
                           {achievement.description}
                         </p>
                       </div>
-                      <div className={`text-lg ${achievement.unlocked ? 'text-green-400' : 'text-gray-600'}`}>
+                      <div className={`text-lg flex-shrink-0 ${achievement.unlocked ? 'text-green-400' : 'text-gray-600'}`}>
                         {achievement.unlocked ? '✅' : '🔒'}
                       </div>
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Footer Stats */}
+            <div className="p-4 border-t border-white/10 bg-gradient-to-r from-purple-500/5 to-blue-500/5">
+              <div className="grid grid-cols-3 gap-3 text-center text-xs">
+                <div>
+                  <div className="text-purple-400 font-bold text-lg">{unlockedCount}</div>
+                  <div className="text-gray-400">Unlocked</div>
+                </div>
+                <div>
+                  <div className="text-pink-400 font-bold text-lg">{totalCount - unlockedCount}</div>
+                  <div className="text-gray-400">Locked</div>
+                </div>
+                <div>
+                  <div className="text-blue-400 font-bold text-lg">{Math.round(progress)}%</div>
+                  <div className="text-gray-400">Complete</div>
+                </div>
               </div>
             </div>
           </div>

@@ -9,39 +9,13 @@ import { useChatHistory, Message } from '@/app/hooks/useChatHistory';
 import { useWallet } from '@/app/context/WalletProvider';
 import WelcomeOnboarding from '@/components/WelcomeOnboarding';
 import MemorySettings from '@/components/MemorySettings';
-import AchievementSystem from './AchievementSystem';
-
-// Custom hook untuk blockchain service
-const useBlockchainService = () => {
-  const wallet = useWallet();
-  const isProcessing = useRef(false);
-
-  const sendInteraction = useCallback(async () => {
-    if (isProcessing.current) return null;
-    
-    isProcessing.current = true;
-    try {
-      console.log("🔐 Sending blockchain interaction...");
-      const signature = await solanaService.interact(wallet);
-      console.log("✅ Blockchain interaction completed:", signature);
-      return signature;
-    } catch (error) {
-      console.error("❌ Blockchain interaction failed:", error);
-      throw error;
-    } finally {
-      isProcessing.current = false;
-    }
-  }, [wallet]);
-
-  return { sendInteraction };
-};
+import AchievementSystem from '@/app/chat/AchievementSystem';
 
 export default function ChatPage() {
   const wallet = useWallet();
   const { isConnected, address: walletAddress, provider, connectWallet, publicKey } = wallet;
   
-  const [messages, addMessage, clearChatHistory, chatUtils] = useChatHistory(walletAddress || '');
-  const { sendInteraction } = useBlockchainService();
+  const [messages, addMessage] = useChatHistory(walletAddress || '');
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -59,31 +33,21 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isProcessingRef = useRef(false);
   
-  // Scroll system yang stabil
-  const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
-    if (!chatContainerRef.current) return;
-    
-    const container = chatContainerRef.current;
-    const targetScroll = container.scrollHeight - container.clientHeight;
-    
-    if (Math.abs(container.scrollTop - targetScroll) > 50) {
-      container.scrollTo({
-        top: targetScroll,
-        behavior
-      });
-    }
+  // ✅ STABLE: No re-render scroll
+  const scrollToBottom = useCallback(() => {
+    if (!messagesEndRef.current) return;
+    messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, []);
 
-  // Hanya satu scroll effect ketika messages berubah
+  // ✅ ONLY scroll on new message, NEVER on state updates
   useEffect(() => {
     if (messages.length > 0) {
-      const timer = setTimeout(() => {
-        scrollToBottom('smooth');
-      }, 50);
+      const timer = setTimeout(scrollToBottom, 100);
       return () => clearTimeout(timer);
     }
-  }, [messages.length, scrollToBottom]);
+  }, [messages.length, scrollToBottom]); // Only messages.length, not entire messages array
 
   // Load AIKO data
   const loadAikoData = useCallback(async () => {
@@ -100,16 +64,9 @@ export default function ChatPage() {
         setAikoData(data);
         
         const needsOnboarding = !data.userName || !data.userCountry;
-        console.log("🧠 Memory check:", { 
-          userName: data.userName, 
-          userCountry: data.userCountry,
-          needsOnboarding 
-        });
         
         if (needsOnboarding) {
-          setTimeout(() => {
-            setShowOnboarding(true);
-          }, 500);
+          setTimeout(() => setShowOnboarding(true), 500);
         }
         
         if (messages.length === 0 && !needsOnboarding) {
@@ -128,20 +85,19 @@ export default function ChatPage() {
           addAikoMessage(welcomeMessage, 'excited', '🎉');
         }
       } else {
-        console.log("No AIKO account found, user needs to initialize");
         setIsInitializing(true);
       }
     } catch (error: any) {
-      console.error('Gagal memuat AIKO:', error);
+      console.error('Failed to load AIKO:', error);
       
       if (error.message?.includes('Insufficient balance')) {
         setErrorType('balance');
         addAikoMessage(
-          `Oh no! 😢 ${error.message}. I need SOL for gas fees. Please bridge some SOL from Ethereum Sepolia to Carv Testnet using the bridge!`,
+          `Oh no! 😢 ${error.message}. Please bridge some SOL from Ethereum Sepolia!`,
           'sad',
           '💸'
         );
-        showNotification('💰 Low balance! Please bridge SOL from Sepolia');
+        showNotification('💰 Low balance! Please bridge SOL');
         return;
       } else {
         setErrorType('generic');
@@ -151,7 +107,7 @@ export default function ChatPage() {
         setIsInitializing(true);
       } else {
         addAikoMessage(
-          "Hmm, something went wrong while loading my data... 😅 Please try refreshing the page!",
+          "Hmm, something went wrong... 😅 Please try refreshing!",
           'sad',
           '🔄'
         );
@@ -160,9 +116,8 @@ export default function ChatPage() {
       setAikoLoading(false);
       setHasCheckedOnboarding(true);
     }
-  }, [publicKey, provider, wallet, messages.length, addMessage]);
+  }, [publicKey, provider, wallet, messages.length]);
 
-  // Load AIKO data ketika wallet connected
   useEffect(() => {
     if (isConnected && publicKey && provider) {
       loadAikoData();
@@ -171,9 +126,8 @@ export default function ChatPage() {
       setIsInitializing(false);
       setHasCheckedOnboarding(false);
     }
-  }, [isConnected, publicKey, provider, loadAikoData]);
+  }, [isConnected, publicKey, provider]);
 
-  // Mouse move listener untuk background effect
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
@@ -182,16 +136,12 @@ export default function ChatPage() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Onboarding check
   useEffect(() => {
     if (aikoData && hasCheckedOnboarding) {
       const needsOnboarding = !aikoData.userName || !aikoData.userCountry;
       
       if (needsOnboarding && !showOnboarding) {
-        const timer = setTimeout(() => {
-          setShowOnboarding(true);
-        }, 300);
-        
+        const timer = setTimeout(() => setShowOnboarding(true), 300);
         return () => clearTimeout(timer);
       }
     }
@@ -205,36 +155,30 @@ export default function ChatPage() {
     setErrorType(null);
     
     try {
-      console.log("Initializing AIKO account...");
       await solanaService.initialize(wallet);
-      
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const newData = await solanaService.getAIKO(wallet);
       if (newData) {
         setAikoData(newData);
-        
-        console.log("✅ Aiko created, showing onboarding...");
-        setTimeout(() => {
-          setShowOnboarding(true);
-        }, 1000);
+        setTimeout(() => setShowOnboarding(true), 1000);
       }
     } catch (error: any) {
-      console.error("Gagal initialize AIKO:", error);
+      console.error("Failed to initialize:", error);
       
       if (error.message?.includes('Insufficient balance')) {
         setErrorType('balance');
         addAikoMessage(
-          `Oh no! 😢 ${error.message}. I need SOL for gas fees to create my account. Please bridge some SOL from Ethereum Sepolia first!`,
+          `Oh no! 😢 ${error.message}. Please bridge some SOL first!`,
           'sad',
           '💸'
         );
-        showNotification('💰 Low balance! Please bridge SOL from Sepolia');
+        showNotification('💰 Low balance! Please bridge SOL');
         return;
       }
       
       addAikoMessage(
-        "Oh no! Something went wrong while creating my account... 😢 Please try again!",
+        "Oh no! Something went wrong... 😢 Please try again!",
         'sad',
         '💔'
       );
@@ -245,19 +189,13 @@ export default function ChatPage() {
   };
 
   const handleOnboardingComplete = async (name: string, country: string) => {
-    if (!publicKey || !provider) {
-      console.error('Wallet not connected');
-      return;
-    }
+    if (!publicKey || !provider) return;
 
     try {
-      console.log('🧠 Saving memory to blockchain...', { name, country });
       setLoading(true);
       
       const flags = 0x03;
       await solanaService.updateMemory(wallet, name, country, flags);
-      
-      console.log('✅ Memory saved! Waiting for confirmation...');
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       const updated = await solanaService.getAIKO(wallet);
@@ -266,19 +204,17 @@ export default function ChatPage() {
         setShowOnboarding(false);
         
         addAikoMessage(
-          `Yay! Nice to meet you, ${name}! 🎉 I'll remember you forever on the blockchain! 💕`,
+          `Yay! Nice to meet you, ${name}! 🎉 I'll remember you forever! 💕`,
           'excited',
           '🌸'
         );
         
         showNotification('✅ Memory saved to blockchain!');
       }
-      
-      console.log('✅ Onboarding completed!');
     } catch (error: any) {
-      console.error('❌ Failed to save memory:', error);
+      console.error('Failed to save memory:', error);
       addAikoMessage(
-        'Oh no! I had trouble saving your info... 😢 Can you try again?',
+        'Oh no! I had trouble saving... 😢 Can you try again?',
         'sad',
         '💔'
       );
@@ -291,24 +227,21 @@ export default function ChatPage() {
     if (!publicKey || !provider) return;
     
     try {
-      console.log('🔄 Refreshing AIKO data after memory update...');
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const updated = await solanaService.getAIKO(wallet);
       if (updated) {
         setAikoData(updated);
-        showNotification('✅ Memory updated on blockchain!');
+        showNotification('✅ Memory updated!');
         
         addAikoMessage(
-          `Got it! I'll remember that! 🌸 Your info is safely stored on-chain! 💕`,
+          `Got it! I'll remember that! 🌸`,
           'happy',
           '✨'
         );
       }
-      
-      console.log('✅ Memory refreshed!');
     } catch (error) {
-      console.error('❌ Failed to reload data:', error);
+      console.error('Failed to reload:', error);
     }
   };
 
@@ -340,22 +273,23 @@ export default function ChatPage() {
 
   const showNotification = (text: string) => {
     setNotification(text);
-    setTimeout(() => setNotification(null), 4000);
+    setTimeout(() => setNotification(null), 3000);
   };
 
-  // Handle send message dengan zero visual change
+  // ✅ PERFECT: Zero visual change, smooth experience
   const handleSend = async () => {
-    if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
+    if (!input.trim() || loading || isProcessingRef.current || !aikoData || !publicKey || !provider) return;
 
     const userMessage = input.trim();
-    setInput('');
+    setInput(''); // Clear input immediately
     
-    // Tampilkan user message instant
+    // Show user message instantly
     addUserMessage(userMessage);
     setLoading(true);
+    isProcessingRef.current = true;
 
     try {
-      // Proses AI chat dulu untuk instant response
+      // Get AI response immediately
       const response = await deepseekService.chat(
         userMessage, 
         {
@@ -376,56 +310,54 @@ export default function ChatPage() {
         }))
       );
 
-      // Tampilkan AIKO response instant
+      // Show AIKO response instantly
       addAikoMessage(response.text, response.emotion as any, response.emoji);
 
-      // Proses wallet di background tanpa effect ke UI
+      // ✅ BACKGROUND: Wallet sign happens silently
       setTimeout(async () => {
         try {
-          const txSignature = await sendInteraction();
+          await solanaService.interact(wallet);
           
-          if (txSignature) {
-            // Update state secara silent tanpa trigger re-render berlebihan
-            setAikoData(prev => {
-              if (!prev) return prev;
-              
-              const newXP = prev.xp.add(new BN(10));
-              const newLevel = calculateLevel(Number(newXP.toString()));
-              
-              return {
-                ...prev,
-                totalInteractions: prev.totalInteractions.add(new BN(1)),
-                xp: newXP,
-                level: newLevel,
-                lastInteraction: new BN(Math.floor(Date.now() / 1000))
-              };
-            });
+          // ✅ SILENT UPDATE: No re-render, just state change
+          setAikoData(prev => {
+            if (!prev) return prev;
             
-            // Notification kecil yang tidak ganggu
-            showNotification('✅ +10 XP');
-          }
+            const newXP = prev.xp.add(new BN(10));
+            const newLevel = Math.floor(Number(newXP.toString()) / 100) + 1;
+            const previousLevel = prev.level;
+            
+            // Show level up notification only
+            if (newLevel > previousLevel) {
+              setTimeout(() => showNotification(`🎉 Level Up! Now Level ${newLevel}!`), 500);
+            }
+            
+            return {
+              ...prev,
+              totalInteractions: prev.totalInteractions.add(new BN(1)),
+              xp: newXP,
+              level: newLevel,
+              lastInteraction: new BN(Math.floor(Date.now() / 1000))
+            };
+          });
+          
         } catch (error) {
-          // Silent fail - user tidak perlu tahu
-          console.log("Wallet transaction failed silently:", error);
+          // Silent fail - user doesn't need to know
+          console.log("Wallet transaction in background:", error);
         }
-      }, 100);
+      }, 50);
 
     } catch (error: any) {
-      console.error('❌ Chat failed:', error);
+      console.error('Chat failed:', error);
       addAikoMessage(
-        "Oops! Something went wrong... 😅 Let's try again!",
+        "Oops! Something went wrong... 😅",
         'sad',
         '💔'
       );
     } finally {
       setLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
+      isProcessingRef.current = false;
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
-  };
-
-  // Helper functions
-  const calculateLevel = (xp: number): number => {
-    return Math.floor(xp / 100) + 1;
   };
 
   const getEvolutionStage = (level: number): 'egg' | 'hatchling' | 'companion' | 'soulmate' => {
@@ -455,9 +387,6 @@ export default function ChatPage() {
     return gradients[stage];
   };
 
-  // Use memo untuk stable messages reference
-  const stableMessages = useMemo(() => messages, [messages]);
-
   // Loading states
   if (!isConnected) {
     return (
@@ -469,7 +398,7 @@ export default function ChatPage() {
           </p>
           <button
             onClick={connectWallet}
-            className="group relative px-8 py-4 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="group relative px-8 py-4 rounded-2xl transition-all"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl group-hover:shadow-2xl group-hover:shadow-purple-500/50 transition-all" />
             <div className="relative flex items-center gap-2 text-white font-semibold">
@@ -494,7 +423,7 @@ export default function ChatPage() {
             🔄
           </motion.div>
           <h2 className="text-3xl font-bold text-white mb-4">Loading AIKO...</h2>
-          <p className="text-purple-300">Fetching your companion data from blockchain</p>
+          <p className="text-purple-300">Fetching your companion from blockchain</p>
         </div>
       </div>
     );
@@ -565,7 +494,7 @@ export default function ChatPage() {
           
           <p className="text-purple-300 mb-6 max-w-md">
             {errorType === 'balance' 
-              ? "Your wallet doesn't have enough SOL for gas fees. You need at least 0.001 SOL to interact with AIKO. Please bridge some SOL from Ethereum Sepolia to Carv SVM Testnet!"
+              ? "Your wallet doesn't have enough SOL. Please bridge some SOL from Ethereum Sepolia!"
               : "Unable to load AIKO data. Please try refreshing."
             }
           </p>
@@ -583,23 +512,11 @@ export default function ChatPage() {
                 onClick={() => window.open('https://bridge.testnet.carv.io/home', '_blank')}
                 className="px-6 py-3 glass border border-yellow-500/50 rounded-2xl text-yellow-300 font-semibold hover:bg-yellow-500/10 transition-all flex items-center gap-2"
               >
-                <span>Bridge SOL from Sepolia</span>
+                <span>Bridge SOL</span>
                 <span>🌉</span>
               </button>
             )}
           </div>
-          
-          {errorType === 'balance' && (
-            <div className="mt-4 text-gray-400 text-sm max-w-md">
-              <p>💡 <strong>How to get SOL:</strong></p>
-              <ol className="text-left mt-2 space-y-1">
-                <li>1. Get ETH from <a href="https://sepoliafaucet.com" target="_blank" className="text-blue-400 hover:underline">Sepolia Faucet</a></li>
-                <li>2. Go to <a href="https://bridge.testnet.carv.io/home" target="_blank" className="text-blue-400 hover:underline">Carv Bridge</a></li>
-                <li>3. Bridge ETH from Sepolia to SOL on Carv Testnet</li>
-                <li>4. Come back and retry!</li>
-              </ol>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -639,7 +556,7 @@ export default function ChatPage() {
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
-            className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50"
+            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60]"
           >
             <div className="glass-card px-6 py-3 rounded-2xl border border-yellow-500/50 shadow-2xl">
               <p className="text-yellow-300 font-semibold text-sm">{notification}</p>
@@ -712,7 +629,7 @@ export default function ChatPage() {
                 </div>
               </div>
 
-              {/* Info Cards dengan Memory Data */}
+              {/* Info Cards */}
               <div className="space-y-3">
                 {knowsName && (
                   <div className="glass-card rounded-xl p-4">
@@ -773,7 +690,7 @@ export default function ChatPage() {
       {/* Main Chat Area */}
       <div className="relative flex-1 flex flex-col z-10">
         {/* Header */}
-        <header className="glass-card border-b border-white/10 px-6 py-4">
+        <header className="glass-card border-b border-white/10 px-6 py-4 relative z-30">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -812,14 +729,15 @@ export default function ChatPage() {
                 <span className="text-orange-400 font-bold">🔥 {aikoData.streak.toString()}</span>
               </div>
 
-              {/* Achievement Button */}
-              <AchievementSystem 
-                aikoData={aikoData}
-                knowsName={knowsName}
-                knowsCountry={knowsCountry}
-              />
+              {/* ✅ FIX: Achievement Button with proper z-index */}
+              <div className="relative z-40">
+                <AchievementSystem 
+                  aikoData={aikoData}
+                  knowsName={knowsName}
+                  knowsCountry={knowsCountry}
+                />
+              </div>
 
-              {/* Settings Button */}
               <button
                 onClick={() => setShowSettings(true)}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
@@ -846,52 +764,46 @@ export default function ChatPage() {
         {/* Messages */}
         <div 
           ref={chatContainerRef}
-          className="flex-1 overflow-y-auto px-6 py-8 space-y-6 scroll-smooth"
-          style={{ 
-            overflowAnchor: 'none'
-          }}
+          className="flex-1 overflow-y-auto px-6 py-8"
         >
           <div className="max-w-4xl mx-auto space-y-6">
-            <AnimatePresence initial={false}>
-              {stableMessages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex items-end gap-3 max-w-[85%] ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {message.sender === 'aiko' && (
-                      <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getEvolutionGradient(currentStage)} flex items-center justify-center text-xl flex-shrink-0 animate-float shadow-lg`}>
-                        {getEvolutionEmoji(currentStage)}
-                      </div>
-                    )}
+            {messages.map((message) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`flex items-end gap-3 max-w-[85%] ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  {message.sender === 'aiko' && (
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getEvolutionGradient(currentStage)} flex items-center justify-center text-xl flex-shrink-0 animate-float shadow-lg`}>
+                      {getEvolutionEmoji(currentStage)}
+                    </div>
+                  )}
 
-                    <div className="flex flex-col">
-                      <div
-                        className={`px-5 py-4 rounded-3xl backdrop-blur-xl ${
-                          message.sender === 'user'
-                            ? 'bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-xl'
-                            : 'glass-card text-white border border-white/20 shadow-xl'
-                        } ${message.sender === 'aiko' ? 'rounded-bl-sm' : 'rounded-br-sm'}`}
-                      >
-                        {message.emoji && message.sender === 'aiko' && (
-                          <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-sm mb-2">
-                            <span>{message.emoji}</span>
-                          </div>
-                        )}
-                        <p className="text-base leading-relaxed whitespace-pre-wrap">{message.text}</p>
-                      </div>
-                      <div className={`text-xs text-gray-500 mt-1 px-2 ${message.sender === 'user' ? 'text-right' : 'text-left'}`}>
-                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
+                  <div className="flex flex-col">
+                    <div
+                      className={`px-5 py-4 rounded-3xl backdrop-blur-xl ${
+                        message.sender === 'user'
+                          ? 'bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-xl'
+                          : 'glass-card text-white border border-white/20 shadow-xl'
+                      } ${message.sender === 'aiko' ? 'rounded-bl-sm' : 'rounded-br-sm'}`}
+                    >
+                      {message.emoji && message.sender === 'aiko' && (
+                        <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-sm mb-2">
+                          <span>{message.emoji}</span>
+                        </div>
+                      )}
+                      <p className="text-base leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                    </div>
+                    <div className={`text-xs text-gray-500 mt-1 px-2 ${message.sender === 'user' ? 'text-right' : 'text-left'}`}>
+                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                </div>
+              </motion.div>
+            ))}
 
             {/* Typing Indicator */}
             {loading && (
@@ -956,14 +868,7 @@ export default function ChatPage() {
                 <div className="relative flex items-center gap-2 text-white font-semibold">
                   {loading ? (
                     <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-5 h-5"
-                      >
-                        ⏳
-                      </motion.div>
-                      <span className="hidden sm:inline">Processing...</span>
+                      <span className="hidden sm:inline">Thinking...</span>
                     </>
                   ) : (
                     <>
@@ -977,18 +882,9 @@ export default function ChatPage() {
               </button>
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-xs">
-              <span className="text-gray-400">Press Enter to send</span>
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1 text-gray-400">
-                  <span>💬</span>
-                  <span>{aikoData.totalInteractions.toString()} messages</span>
-                </span>
-                <span className="flex items-center gap-1 text-purple-400">
-                  <span>✍️</span>
-                  <span>Sign to earn XP</span>
-                </span>
-              </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+              <span>Press Enter to send</span>
+              <span>{aikoData.totalInteractions.toString()} messages • +10 XP per chat</span>
             </div>
           </div>
         </div>
