@@ -73,16 +73,14 @@ export default function ChatPage() {
   }, []);
 
   // ✅ Stable scroll effect
-  useEffect(() => {
+    useEffect(() => {
     if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      const shouldScroll = Date.now() - lastMessage.timestamp < 2000;
-      
-      if (shouldScroll) {
-        scrollToBottom('smooth');
-      }
+        // Scroll ke bottom dengan delay sedikit agar UI sudah fully rendered
+        setTimeout(() => {
+        scrollToBottom('auto');
+        }, 500);
     }
-  }, [messages, scrollToBottom]);
+    }, []); 
 
   // ✅ FIX: Define loadAikoData dengan useCallback
   const loadAikoData = useCallback(async () => {
@@ -342,7 +340,7 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-    // ✅ FIXED: handleSend 
+    // ✅ FIXED: handleSend tanpa background sync yang cause refresh
     const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
@@ -378,25 +376,14 @@ export default function ChatPage() {
             content: msg.text
             }))
         ),
-        sendInteraction() // Blockchain
+        sendInteraction()
         ]);
 
         // ✅ TAMPILKAN AIKO RESPONSE (instant)
         addAikoMessage(response.text, response.emotion as any, response.emoji);
 
-        // ✅ DEBOUNCED BACKGROUND UPDATE (5 detik kemudian)
-        setTimeout(async () => {
-        try {
-            const updatedAiko = await solanaService.getAIKO(wallet);
-            if (updatedAiko && previousAikoData.level !== updatedAiko.level) {
-            showNotification(`🎉 Level Up! Level ${updatedAiko.level}!`);
-            // User sudah selesai chat, jadi scroll reset tidak masalah
-            setAikoData(updatedAiko);
-            }
-        } catch (error) {
-            console.error("Background sync failed:", error);
-        }
-        }, 5000); // ✅ UPDATE SETELAH 5 DETIK (user sudah selesai chat)
+        // ✅ HAPUS BACKGROUND SYNC YANG CAUSE REFRESH
+        // Data akan update ketika user refresh page manual
 
     } catch (error: any) {
         console.error('❌ Chat failed:', error);
