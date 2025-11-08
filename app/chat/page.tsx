@@ -60,55 +60,32 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   
-  // ✅ PERBAIKI: Scroll system yang lebih robust
+  // Scroll system yang stabil
   const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
-    requestAnimationFrame(() => {
-      // Method 1: Scroll container langsung (paling reliable)
-      if (chatContainerRef.current) {
-        const container = chatContainerRef.current;
-        const targetScroll = container.scrollHeight - container.clientHeight;
-        
-        if (Math.abs(container.scrollTop - targetScroll) > 10) {
-          container.scrollTo({
-            top: targetScroll,
-            behavior
-          });
-        }
-      }
-      
-      // Method 2: Fallback dengan messagesEndRef
-      setTimeout(() => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ 
-            behavior,
-            block: 'end',
-            inline: 'nearest'
-          });
-        }
-      }, 50);
-    });
+    if (!chatContainerRef.current) return;
+    
+    const container = chatContainerRef.current;
+    const targetScroll = container.scrollHeight - container.clientHeight;
+    
+    if (Math.abs(container.scrollTop - targetScroll) > 50) {
+      container.scrollTo({
+        top: targetScroll,
+        behavior
+      });
+    }
   }, []);
 
-  // ✅ SCROLL EFFECT: Trigger ketika messages berubah atau page load
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      scrollToBottom('auto');
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [scrollToBottom]);
-
-  // ✅ SCROLL ketika ada message baru
+  // Hanya satu scroll effect ketika messages berubah
   useEffect(() => {
     if (messages.length > 0) {
       const timer = setTimeout(() => {
         scrollToBottom('smooth');
-      }, 100);
+      }, 50);
       return () => clearTimeout(timer);
     }
   }, [messages.length, scrollToBottom]);
 
-  // ✅ FIX: Define loadAikoData dengan useCallback
+  // Load AIKO data
   const loadAikoData = useCallback(async () => {
     if (!publicKey || !provider) return;
 
@@ -123,6 +100,11 @@ export default function ChatPage() {
         setAikoData(data);
         
         const needsOnboarding = !data.userName || !data.userCountry;
+        console.log("🧠 Memory check:", { 
+          userName: data.userName, 
+          userCountry: data.userCountry,
+          needsOnboarding 
+        });
         
         if (needsOnboarding) {
           setTimeout(() => {
@@ -180,7 +162,7 @@ export default function ChatPage() {
     }
   }, [publicKey, provider, wallet, messages.length, addMessage]);
 
-  // Load AIKO data
+  // Load AIKO data ketika wallet connected
   useEffect(() => {
     if (isConnected && publicKey && provider) {
       loadAikoData();
@@ -191,7 +173,7 @@ export default function ChatPage() {
     }
   }, [isConnected, publicKey, provider, loadAikoData]);
 
-  // Mouse move listener
+  // Mouse move listener untuk background effect
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
@@ -361,41 +343,32 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // ✅ PERBAIKI TOTAL: handleSend TANPA REFRESH SAMA SEKALI
+  // Handle send message dengan zero visual change
   const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
     const userMessage = input.trim();
     setInput('');
     
-    // ✅ 1. INSTANT: Tampilkan user message
+    // Tampilkan user message instant
     addUserMessage(userMessage);
     setLoading(true);
-    
-    // ✅ 2. INSTANT: Scroll ke bottom untuk user message
-    setTimeout(() => scrollToBottom('smooth'), 0);
 
     try {
-      console.log("🚀 Starting NO-REFRESH chat process...");
-      
-      // ✅ 3. SIMPAN DATA SEBELUM untuk AI chat
-      const previousAikoData = { ...aikoData };
-      
-      // ✅ 4. PROSES AI CHAT DULU (instant response)
-      console.log("🤖 Getting AI response...");
+      // Proses AI chat dulu untuk instant response
       const response = await deepseekService.chat(
         userMessage, 
         {
-          owner: previousAikoData.owner.toBase58(),
-          level: previousAikoData.level,
-          xp: Number(previousAikoData.xp.toString()),
-          total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
+          owner: aikoData.owner.toBase58(),
+          level: aikoData.level,
+          xp: Number(aikoData.xp.toString()),
+          total_interactions: Number(aikoData.totalInteractions.toString()) + 1,
           last_interaction: Math.floor(Date.now() / 1000),
-          streak: Number(previousAikoData.streak.toString()),
-          evolution_stage: getEvolutionStage(previousAikoData.level),
-          userName: previousAikoData.userName || '',
-          userCountry: previousAikoData.userCountry || '',
-          memoryFlags: previousAikoData.memoryFlags || 0
+          streak: Number(aikoData.streak.toString()),
+          evolution_stage: getEvolutionStage(aikoData.level),
+          userName: aikoData.userName || '',
+          userCountry: aikoData.userCountry || '',
+          memoryFlags: aikoData.memoryFlags || 0
         },
         messages.slice(-10).map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
@@ -403,73 +376,50 @@ export default function ChatPage() {
         }))
       );
 
-      // ✅ 5. INSTANT: Tampilkan AIKO response - TANPA REFRESH
+      // Tampilkan AIKO response instant
       addAikoMessage(response.text, response.emotion as any, response.emoji);
 
-      // ✅ 6. PROSES WALLET SETELAH AI RESPONSE (background)
-      let txSignature;
-      let walletSuccess = false;
-      
-      try {
-        // ✅ Wallet popup muncul di sini - TANPA REFRESH
-        console.log("🔄 Processing wallet transaction in background...");
-        txSignature = await sendInteraction();
-        walletSuccess = true;
-        console.log("✅ Wallet signed:", txSignature);
-      } catch (error: any) {
-        if (error.message?.includes('user rejected')) {
-          // User cancel wallet, tetap lanjut chat tanpa blockchain update
-          console.log("ℹ️ User rejected wallet, chat continues without blockchain update");
-          walletSuccess = false;
-        } else {
-          console.error("❌ Wallet error:", error);
-          // Tetap lanjut, hanya tampilkan error kecil
-          showNotification('⚠️ Transaction failed, but chat saved locally');
+      // Proses wallet di background tanpa effect ke UI
+      setTimeout(async () => {
+        try {
+          const txSignature = await sendInteraction();
+          
+          if (txSignature) {
+            // Update state secara silent tanpa trigger re-render berlebihan
+            setAikoData(prev => {
+              if (!prev) return prev;
+              
+              const newXP = prev.xp.add(new BN(10));
+              const newLevel = calculateLevel(Number(newXP.toString()));
+              
+              return {
+                ...prev,
+                totalInteractions: prev.totalInteractions.add(new BN(1)),
+                xp: newXP,
+                level: newLevel,
+                lastInteraction: new BN(Math.floor(Date.now() / 1000))
+              };
+            });
+            
+            // Notification kecil yang tidak ganggu
+            showNotification('✅ +10 XP');
+          }
+        } catch (error) {
+          // Silent fail - user tidak perlu tahu
+          console.log("Wallet transaction failed silently:", error);
         }
-      }
-
-      // ✅ 7. UPDATE UI DATA secara manual jika wallet success - TANPA REFRESH
-      if (walletSuccess && txSignature) {
-        setAikoData(prev => {
-          if (!prev) return prev;
-          
-          const newXP = prev.xp.add(new BN(10)); // +10 XP per interaction
-          const newLevel = calculateLevel(Number(newXP.toString()));
-          
-          return {
-            ...prev,
-            totalInteractions: prev.totalInteractions.add(new BN(1)),
-            xp: newXP,
-            level: newLevel,
-            lastInteraction: new BN(Math.floor(Date.now() / 1000))
-          };
-        });
-        
-        showNotification('✅ +10 XP earned!');
-      }
-
-      // ✅ 8. SMOOTH SCROLL ke response AIKO
-      setTimeout(() => scrollToBottom('smooth'), 100);
+      }, 100);
 
     } catch (error: any) {
       console.error('❌ Chat failed:', error);
-      
-      // ✅ ERROR HANDLING: Tetap tampilkan error message tanpa refresh
       addAikoMessage(
         "Oops! Something went wrong... 😅 Let's try again!",
         'sad',
         '💔'
       );
-      
-      setTimeout(() => scrollToBottom('smooth'), 100);
     } finally {
       setLoading(false);
-      
-      // ✅ FOCUS kembali ke input dan final scroll - TANPA REFRESH
-      setTimeout(() => {
-        inputRef.current?.focus();
-        scrollToBottom('smooth');
-      }, 150);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
@@ -508,8 +458,7 @@ export default function ChatPage() {
   // Use memo untuk stable messages reference
   const stableMessages = useMemo(() => messages, [messages]);
 
-  // Loading states - SEMUA CONDITIONAL RETURNS SETELAH HOOKS
-
+  // Loading states
   if (!isConnected) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
@@ -863,14 +812,14 @@ export default function ChatPage() {
                 <span className="text-orange-400 font-bold">🔥 {aikoData.streak.toString()}</span>
               </div>
 
-              {/* ✅ ACHIEVEMENT BUTTON */}
+              {/* Achievement Button */}
               <AchievementSystem 
                 aikoData={aikoData}
                 knowsName={knowsName}
                 knowsCountry={knowsCountry}
               />
 
-              {/* ✅ SETTINGS BUTTON */}
+              {/* Settings Button */}
               <button
                 onClick={() => setShowSettings(true)}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
@@ -899,7 +848,7 @@ export default function ChatPage() {
           ref={chatContainerRef}
           className="flex-1 overflow-y-auto px-6 py-8 space-y-6 scroll-smooth"
           style={{ 
-            overflowAnchor: 'none' // Nonaktifkan auto anchor
+            overflowAnchor: 'none'
           }}
         >
           <div className="max-w-4xl mx-auto space-y-6">
@@ -978,7 +927,6 @@ export default function ChatPage() {
               </motion.div>
             )}
 
-            {/* ✅ PASTIKAN messagesEndRef di luar AnimatePresence */}
             <div ref={messagesEndRef} className="h-px" />
           </div>
         </div>
