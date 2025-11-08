@@ -167,3 +167,46 @@ html {
   mask-image: linear-gradient(to top, black 60%, transparent 100%);
   -webkit-mask-image: linear-gradient(to top, black 60%, transparent 100%);
 }
+
+/* Custom Wallet Button Styles */
+.wallet-adapter-button {
+  background: transparent !important;
+  border: 2px solid rgba(168, 85, 247, 0.3) !important;
+  border-radius: 16px !important;
+  padding: 12px 24px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: white !important;
+  backdrop-filter: blur(20px) !important;
+  transition: all 0.3s ease !important;
+  height: auto !important;
+  min-height: auto !important;
+}
+
+.wallet-adapter-button:hover {
+  background: rgba(168, 85, 247, 0.1) !important;
+  border-color: rgba(168, 85, 247, 0.6) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.4) !important;
+}
+
+/* Wallet Modal Styling */
+.wallet-adapter-modal-wrapper {
+  background: rgba(15, 5, 25, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.wallet-adapter-modal-list li {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  margin-bottom: 8px !important;
+  transition: all 0.3s ease !important;
+}
+
+.wallet-adapter-modal-list li:hover {
+  background: rgba(168, 85, 247, 0.1) !important;
+  border-color: rgba(168, 85, 247, 0.3) !important;
+  transform: translateX(4px) !important;
+}
