@@ -39,7 +39,7 @@ const useBlockchainService = () => {
 export default function ChatPage() {
   const wallet = useWallet();
   const { isConnected, address: walletAddress, provider, connectWallet, publicKey } = wallet;
-  const { messages, addMessage, removeMessage } = useChatHistory(walletAddress || '');
+  const { messages, addMessage } = useChatHistory(walletAddress || ''); // ✅ REMOVE removeMessage
   const { sendInteraction } = useBlockchainService();
 
   const [input, setInput] = useState('');
@@ -54,7 +54,6 @@ export default function ChatPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false); 
   const [errorType, setErrorType] = useState<'balance' | 'generic' | null>(null);
-  const [lastUserMessageId, setLastUserMessageId] = useState<string | null>(null);
  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -84,42 +83,8 @@ export default function ChatPage() {
     }
   }, [messages, scrollToBottom]);
 
-  // Load AIKO data
-  useEffect(() => {
-    if (isConnected && publicKey && provider) {
-      loadAikoData();
-    } else {
-      setAikoData(null);
-      setIsInitializing(false);
-      setHasCheckedOnboarding(false);
-    }
-  }, [isConnected, publicKey, provider]);
-
-  // Mouse move listener
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  // Onboarding check
-  useEffect(() => {
-    if (aikoData && hasCheckedOnboarding) {
-      const needsOnboarding = !aikoData.userName || !aikoData.userCountry;
-      
-      if (needsOnboarding && !showOnboarding) {
-        const timer = setTimeout(() => {
-          setShowOnboarding(true);
-        }, 300);
-        
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [aikoData, hasCheckedOnboarding, showOnboarding]);
-
-  const loadAikoData = async () => {
+  // ✅ FIX: Define loadAikoData dengan useCallback untuk menghindari dependency warning
+  const loadAikoData = useCallback(async () => {
     if (!publicKey || !provider) return;
 
     setAikoLoading(true);
@@ -193,7 +158,42 @@ export default function ChatPage() {
       setAikoLoading(false);
       setHasCheckedOnboarding(true);
     }
-  };
+  }, [publicKey, provider, wallet, messages.length]); // ✅ ADD dependencies
+
+  // Load AIKO data
+  useEffect(() => {
+    if (isConnected && publicKey && provider) {
+      loadAikoData();
+    } else {
+      setAikoData(null);
+      setIsInitializing(false);
+      setHasCheckedOnboarding(false);
+    }
+  }, [isConnected, publicKey, provider, loadAikoData]); // ✅ ADD loadAikoData dependency
+
+  // Mouse move listener
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Onboarding check
+  useEffect(() => {
+    if (aikoData && hasCheckedOnboarding) {
+      const needsOnboarding = !aikoData.userName || !aikoData.userCountry;
+      
+      if (needsOnboarding && !showOnboarding) {
+        const timer = setTimeout(() => {
+          setShowOnboarding(true);
+        }, 300);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [aikoData, hasCheckedOnboarding, showOnboarding]);
 
   const handleInitialize = async () => {
     if (!publicKey || !provider) return;
@@ -285,17 +285,6 @@ export default function ChatPage() {
     }
   };
 
-  const handleOnboardingSkip = () => {
-    console.log('⏭️ Onboarding skipped');
-    setShowOnboarding(false);
-    
-    addAikoMessage(
-      "That's okay! You can tell me your name and where you're from anytime! 🌸",
-      'happy',
-      '😊'
-    );
-  };
-
   const handleSettingsUpdate = async () => {
     if (!publicKey || !provider) return;
     
@@ -345,7 +334,6 @@ export default function ChatPage() {
       timestamp: Date.now()
     };
     addMessage(newMessage);
-    setLastUserMessageId(newMessage.id);
     return newMessage.id;
   };
 
@@ -362,7 +350,7 @@ export default function ChatPage() {
     setInput('');
     
     // ✅ TAMPILKAN USER MESSAGE
-    const userMessageId = addUserMessage(userMessage);
+    addUserMessage(userMessage); // ✅ REMOVE userMessageId assignment
     setLoading(true);
 
     try {
@@ -513,8 +501,13 @@ export default function ChatPage() {
     return gradients[stage];
   };
 
+  // ✅ FIX: Pindahkan useMemo ke atas sebelum conditional returns
+  const stableMessages = useMemo(() => messages, [messages]);
 
-  // Loading states
+  // Check free chat status untuk UI indicator
+  const hasFreeChatAvailable = localStorage.getItem('aiko_free_chat_used') !== 'true';
+
+  // Loading states - SEMUA CONDITIONAL RETURNS SETELAH HOOKS
   if (!isConnected) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
@@ -570,7 +563,6 @@ export default function ChatPage() {
           <h2 className="text-3xl font-bold text-white mb-4">Create Your AIKO</h2>
           <p className="text-purple-300 mb-6">Your on-chain companion is ready to hatch!</p>
           
-          {/* ✅ TAMBAHKAN ERROR MESSAGE JIKA ADA ERROR */}
           {errorType === 'balance' && (
             <div className="mb-4 p-4 glass border border-yellow-500/50 rounded-xl">
               <p className="text-yellow-300 text-sm">
@@ -587,7 +579,6 @@ export default function ChatPage() {
             {loading ? 'Creating...' : 'Hatch AIKO 🐣'}
           </button>
           
-          {/* ✅ TAMBAHKAN BRIDGE BUTTON JIKA BALANCE ERROR */}
           {errorType === 'balance' && (
             <button
               onClick={() => window.open('https://bridge.testnet.carv.io/home', '_blank')}
@@ -663,19 +654,12 @@ export default function ChatPage() {
     );
   }
 
-
   // Main render
   const currentStage = getEvolutionStage(aikoData.level);
   const currentXP = Number(aikoData.xp.toString());
   const currentLevel = aikoData.level;
   const knowsName = (aikoData.memoryFlags & 1) !== 0;
   const knowsCountry = (aikoData.memoryFlags & 2) !== 0;
-    
-  // Use memo untuk stable messages reference
-  const stableMessages = useMemo(() => messages, [messages.length]);
-
-  // Check free chat status untuk UI indicator
-  const hasFreeChatAvailable = localStorage.getItem('aiko_free_chat_used') !== 'true';
 
 
   return (
