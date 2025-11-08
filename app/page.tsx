@@ -443,8 +443,8 @@ function HomeContent({
                     isMobile ? 'text-xl' : 'text-2xl'
                   }`}>Advanced AI + Blockchain</h3>
                   <p className="text-gray-300 leading-relaxed">
-                    Powered by DeepSeek AI with on-chain memory system. Your companion remembers your name, 
-                    preferences, and grows personality based on your interactions.
+                    Powered by DeepSeek AI with on-chain memory system. Your companion remembers your name 
+                    and country, and grows personality based on your interactions.
                   </p>
                 </div>
               </div>
@@ -589,7 +589,7 @@ function HomeContent({
               {
                 title: "Blockchain Memory",
                 avatar: "🧠",
-                description: "AIKO remembers your name, location, and key preferences stored permanently on CARV SVM blockchain. Your companion's core memories never disappear.",
+                description: "AIKO remembers your name and country stored permanently on CARV SVM blockchain. Your companion's core memories never disappear.",
                 icon: "🔗"
               },
               {
