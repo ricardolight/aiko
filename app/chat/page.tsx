@@ -39,7 +39,9 @@ const useBlockchainService = () => {
 export default function ChatPage() {
   const wallet = useWallet();
   const { isConnected, address: walletAddress, provider, connectWallet, publicKey } = wallet;
-  const { messages, addMessage } = useChatHistory(walletAddress || ''); // ✅ REMOVE removeMessage
+  
+  // ✅ FIX: Array destructuring yang sesuai dengan useChatHistory return structure
+  const [messages, addMessage, clearChatHistory, chatUtils] = useChatHistory(walletAddress || '');
   const { sendInteraction } = useBlockchainService();
 
   const [input, setInput] = useState('');
@@ -83,7 +85,7 @@ export default function ChatPage() {
     }
   }, [messages, scrollToBottom]);
 
-  // ✅ FIX: Define loadAikoData dengan useCallback untuk menghindari dependency warning
+  // ✅ FIX: Define loadAikoData dengan useCallback
   const loadAikoData = useCallback(async () => {
     if (!publicKey || !provider) return;
 
@@ -158,7 +160,7 @@ export default function ChatPage() {
       setAikoLoading(false);
       setHasCheckedOnboarding(true);
     }
-  }, [publicKey, provider, wallet, messages.length]); // ✅ ADD dependencies
+  }, [publicKey, provider, wallet, messages.length, addMessage]);
 
   // Load AIKO data
   useEffect(() => {
@@ -169,7 +171,7 @@ export default function ChatPage() {
       setIsInitializing(false);
       setHasCheckedOnboarding(false);
     }
-  }, [isConnected, publicKey, provider, loadAikoData]); // ✅ ADD loadAikoData dependency
+  }, [isConnected, publicKey, provider, loadAikoData]);
 
   // Mouse move listener
   useEffect(() => {
@@ -334,7 +336,6 @@ export default function ChatPage() {
       timestamp: Date.now()
     };
     addMessage(newMessage);
-    return newMessage.id;
   };
 
   const showNotification = (text: string) => {
@@ -350,7 +351,7 @@ export default function ChatPage() {
     setInput('');
     
     // ✅ TAMPILKAN USER MESSAGE
-    addUserMessage(userMessage); // ✅ REMOVE userMessageId assignment
+    addUserMessage(userMessage);
     setLoading(true);
 
     try {
