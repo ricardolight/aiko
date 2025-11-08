@@ -65,7 +65,7 @@ export default function MemorySettings({
   );
 
   const handleUpdate = async () => {
-    if (!wallet.isConnected) {
+    if (!wallet.connected) {
       setError('Please connect your wallet first');
       return;
     }
