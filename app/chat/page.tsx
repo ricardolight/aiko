@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { deepseekService } from '@/lib/deepseek';
 import { useChatHistory, Message } from '@/app/hooks/useChatHistory';
 import { useWallet } from '@/app/context/WalletProvider';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useWalletModal, WalletModalButton } from '@solana/wallet-adapter-react-ui';
 import WelcomeOnboarding from '@/components/WelcomeOnboarding';
 import MemorySettings from '@/components/MemorySettings';
 import AchievementSystem from '@/app/chat/AchievementSystem';
