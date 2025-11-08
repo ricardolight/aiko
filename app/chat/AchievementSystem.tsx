@@ -193,66 +193,83 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry, onClose }: Props
             </div>
           </div>
 
-          {/* Bento Grid - 4x3 */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {/* Bento Grid - 4x3 */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {achievements.map((achievement, i) => (
-              <div
+                <div
                 key={achievement.id}
-                className={`group relative rounded-2xl bg-gradient-to-br ${getRarityGradient(achievement.rarity, achievement.unlocked)} border p-4 transition-all duration-300 ${
-                  achievement.unlocked 
-                    ? `hover:scale-105 hover:${getRarityGlow(achievement.rarity)} cursor-pointer` 
-                    : 'opacity-40'
+                className={`group relative rounded-2xl bg-gradient-to-br border p-4 transition-all duration-300 ${
+                    achievement.unlocked 
+                    ? `${getRarityGradient(achievement.rarity, true)} hover:scale-105 hover:${getRarityGlow(achievement.rarity)} cursor-pointer` 
+                    : 'from-gray-800/30 to-gray-900/30 border-gray-700/30 hover:border-gray-600/50'
                 }`}
                 style={{
-                  animationDelay: `${i * 30}ms`,
-                  animationFillMode: 'backwards'
+                    animationDelay: `${i * 30}ms`,
+                    animationFillMode: 'backwards'
                 }}
-              >
-                {/* Rarity Badge */}
-                {achievement.unlocked && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider">
-                    {achievement.rarity === 'legendary' && <span className="text-amber-400">★ Legendary</span>}
-                    {achievement.rarity === 'epic' && <span className="text-purple-400">◆ Epic</span>}
-                    {achievement.rarity === 'rare' && <span className="text-blue-400">● Rare</span>}
-                    {achievement.rarity === 'common' && <span className="text-gray-400">○ Common</span>}
-                  </div>
-                )}
+                >
+                {/* Rarity Badge - Show for ALL */}
+                <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-full backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider ${
+                    achievement.unlocked 
+                    ? 'bg-black/40' 
+                    : 'bg-black/20'
+                }`}>
+                    {achievement.rarity === 'legendary' && (
+                    <span className={achievement.unlocked ? 'text-amber-400' : 'text-gray-600'}>★ Legendary</span>
+                    )}
+                    {achievement.rarity === 'epic' && (
+                    <span className={achievement.unlocked ? 'text-purple-400' : 'text-gray-600'}>◆ Epic</span>
+                    )}
+                    {achievement.rarity === 'rare' && (
+                    <span className={achievement.unlocked ? 'text-blue-400' : 'text-gray-600'}>● Rare</span>
+                    )}
+                    {achievement.rarity === 'common' && (
+                    <span className={achievement.unlocked ? 'text-gray-400' : 'text-gray-600'}>○ Common</span>
+                    )}
+                </div>
 
                 {/* Icon */}
                 <div className={`text-5xl mb-3 transition-all duration-300 ${
-                  achievement.unlocked 
+                    achievement.unlocked 
                     ? 'group-hover:scale-110 group-hover:-rotate-6' 
-                    : 'grayscale opacity-30'
+                    : 'grayscale opacity-50'
                 }`}>
-                  {achievement.icon}
+                    {achievement.icon}
                 </div>
 
-                {/* Text */}
+                {/* Text - ALWAYS READABLE */}
                 <div>
-                  <h4 className={`font-bold text-sm mb-1 ${
-                    achievement.unlocked ? 'text-white' : 'text-gray-600'
-                  }`}>
+                    <h4 className={`font-bold text-sm mb-1 ${
+                    achievement.unlocked ? 'text-white' : 'text-gray-400'
+                    }`}>
                     {achievement.name}
-                  </h4>
-                  <p className={`text-xs ${
-                    achievement.unlocked ? 'text-gray-400' : 'text-gray-700'
-                  }`}>
+                    </h4>
+                    <p className={`text-xs leading-relaxed ${
+                    achievement.unlocked ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
                     {achievement.description}
-                  </p>
+                    </p>
                 </div>
 
                 {/* Status Icon */}
-                <div className="absolute bottom-2 right-2 text-lg">
-                  {achievement.unlocked ? '✅' : '🔒'}
+                <div className={`absolute bottom-2 right-2 text-xl ${
+                    achievement.unlocked ? '' : 'opacity-60'
+                }`}>
+                    {achievement.unlocked ? '✅' : '🔒'}
                 </div>
 
-                {/* Shine Effect */}
-                {achievement.unlocked && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 rounded-2xl" />
+                {/* Locked Overlay Effect */}
+                {!achievement.unlocked && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent rounded-2xl pointer-events-none" />
                 )}
-              </div>
+
+                {/* Shine Effect - Only unlocked */}
+                {achievement.unlocked && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 rounded-2xl" />
+                )}
+                </div>
             ))}
-          </div>
+            </div>
 
           {/* Footer Stats */}
           <div className="mt-6 grid grid-cols-3 gap-3">
