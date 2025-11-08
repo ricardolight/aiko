@@ -342,7 +342,7 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  // ✅ FIXED: handleSend yang SMOOTH tanpa refresh
+    // ✅ FIXED: handleSend 
     const handleSend = async () => {
     if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
 
@@ -359,7 +359,25 @@ export default function ChatPage() {
         const previousAikoData = { ...aikoData };
         
         const [response, txSignature] = await Promise.all([
-        deepseekService.chat(...), // AI Response
+        deepseekService.chat(
+            userMessage, 
+            {
+            owner: previousAikoData.owner.toBase58(),
+            level: previousAikoData.level,
+            xp: Number(previousAikoData.xp.toString()),
+            total_interactions: Number(previousAikoData.totalInteractions.toString()) + 1,
+            last_interaction: Math.floor(Date.now() / 1000),
+            streak: Number(previousAikoData.streak.toString()),
+            evolution_stage: getEvolutionStage(previousAikoData.level),
+            userName: previousAikoData.userName || '',
+            userCountry: previousAikoData.userCountry || '',
+            memoryFlags: previousAikoData.memoryFlags || 0
+            },
+            messages.slice(-10).map(msg => ({
+            role: msg.sender === 'user' ? 'user' : 'assistant',
+            content: msg.text
+            }))
+        ),
         sendInteraction() // Blockchain
         ]);
 
