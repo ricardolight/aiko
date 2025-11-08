@@ -6,7 +6,7 @@ interface Achievement {
   unlocked: boolean;
   icon: string;
   description: string;
-  category: 'milestone' | 'social' | 'dedication' | 'mastery';
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
 interface Props {
@@ -28,96 +28,96 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry, onClose }: Props
       name: "First Steps", 
       unlocked: Number(aikoData.totalInteractions.toString()) >= 1, 
       icon: "👶", 
-      description: "Send your first message",
-      category: 'milestone'
+      description: "First message",
+      rarity: 'common'
     },
     { 
       id: 2, 
       name: "Conversationalist", 
       unlocked: Number(aikoData.totalInteractions.toString()) >= 10, 
       icon: "💬", 
-      description: "Have 10 conversations",
-      category: 'social'
+      description: "10 chats",
+      rarity: 'common'
     },
     { 
       id: 3, 
       name: "Week Warrior", 
       unlocked: Number(aikoData.streak.toString()) >= 7, 
       icon: "🔥", 
-      description: "Maintain a 7-day streak",
-      category: 'dedication'
+      description: "7 day streak",
+      rarity: 'rare'
     },
     { 
       id: 4, 
-      name: "Dedicated Friend", 
+      name: "Dedicated", 
       unlocked: Number(aikoData.streak.toString()) >= 30, 
       icon: "⭐", 
-      description: "Maintain a 30-day streak",
-      category: 'dedication'
+      description: "30 day streak",
+      rarity: 'epic'
     },
     { 
       id: 5, 
       name: "Hatchling", 
       unlocked: aikoData.level >= 5, 
       icon: "🐣", 
-      description: "Reach Level 5",
-      category: 'milestone'
+      description: "Level 5",
+      rarity: 'rare'
     },
     { 
       id: 6, 
       name: "Companion", 
       unlocked: aikoData.level >= 10, 
       icon: "🌸", 
-      description: "Reach Level 10",
-      category: 'milestone'
+      description: "Level 10",
+      rarity: 'epic'
     },
     { 
       id: 7, 
       name: "Soulmate", 
       unlocked: aikoData.level >= 20, 
       icon: "✨", 
-      description: "Reach Level 20",
-      category: 'milestone'
+      description: "Level 20",
+      rarity: 'legendary'
     },
     { 
       id: 8, 
       name: "Memory Keeper", 
       unlocked: knowsName && knowsCountry, 
       icon: "🧠", 
-      description: "Complete your profile",
-      category: 'social'
+      description: "Complete profile",
+      rarity: 'common'
     },
     { 
       id: 9, 
       name: "Century Club", 
       unlocked: Number(aikoData.totalInteractions.toString()) >= 100, 
       icon: "💯", 
-      description: "Reach 100 interactions",
-      category: 'mastery'
+      description: "100 interactions",
+      rarity: 'epic'
     },
     { 
       id: 10, 
       name: "XP Master", 
       unlocked: Number(aikoData.xp.toString()) >= 1000, 
       icon: "🎯", 
-      description: "Earn 1000 XP",
-      category: 'mastery'
+      description: "1000 XP earned",
+      rarity: 'epic'
     },
     { 
       id: 11, 
       name: "Early Adopter", 
       unlocked: true, 
       icon: "🚀", 
-      description: "Join AIKO on CARV SVM",
-      category: 'social'
+      description: "Joined AIKO",
+      rarity: 'rare'
     },
     { 
       id: 12, 
       name: "Legendary", 
       unlocked: aikoData.level >= 50, 
       icon: "👑", 
-      description: "Reach Level 50",
-      category: 'mastery'
+      description: "Level 50",
+      rarity: 'legendary'
     }
   ];
 
@@ -125,175 +125,154 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry, onClose }: Props
   const totalCount = achievements.length;
   const progress = (unlockedCount / totalCount) * 100;
 
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      milestone: 'from-yellow-500/20 to-orange-500/20 border-yellow-500/30',
-      social: 'from-blue-500/20 to-cyan-500/20 border-blue-500/30',
-      dedication: 'from-red-500/20 to-pink-500/20 border-red-500/30',
-      mastery: 'from-purple-500/20 to-pink-500/20 border-purple-500/30',
+  const getRarityGradient = (rarity: string, unlocked: boolean) => {
+    if (!unlocked) return 'from-gray-800/50 to-gray-900/50 border-gray-700/30';
+    
+    const gradients = {
+      common: 'from-slate-500/20 to-slate-600/20 border-slate-400/40',
+      rare: 'from-blue-500/20 to-cyan-500/20 border-blue-400/40',
+      epic: 'from-purple-500/20 to-pink-500/20 border-purple-400/40',
+      legendary: 'from-amber-500/20 to-orange-500/20 border-amber-400/40',
     };
-    return colors[category as keyof typeof colors];
+    return gradients[rarity as keyof typeof gradients];
   };
 
-  const getCategoryBadge = (category: string) => {
-    const badges = {
-      milestone: { emoji: '🎯', name: 'Milestone' },
-      social: { emoji: '💙', name: 'Social' },
-      dedication: { emoji: '🔥', name: 'Dedication' },
-      mastery: { emoji: '⚡', name: 'Mastery' },
+  const getRarityGlow = (rarity: string) => {
+    const glows = {
+      common: 'shadow-slate-500/20',
+      rare: 'shadow-blue-500/30',
+      epic: 'shadow-purple-500/40',
+      legendary: 'shadow-amber-500/50',
     };
-    return badges[category as keyof typeof badges];
+    return glows[rarity as keyof typeof glows];
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="max-w-3xl w-full glass-card rounded-3xl p-6 sm:p-8 space-y-6 max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-3xl font-bold text-white flex items-center gap-3">
-              <span className="text-4xl">🏆</span> Achievements
-            </h3>
-            <p className="text-gray-400 text-sm mt-1">
-              Unlock badges as you grow with AIKO
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Progress Bar with Stats */}
-        <div className="glass-card rounded-2xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-3xl font-bold text-white">{unlockedCount}/{totalCount}</div>
-              <div className="text-sm text-gray-400">Achievements Unlocked</div>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-6xl bg-gradient-to-br from-[#1a1625] to-[#0f0519] rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        
+        {/* Compact Header */}
+        <div className="relative border-b border-white/10 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 p-6">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-3xl shadow-lg shadow-purple-500/50">
+                🏆
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Achievement Gallery</h3>
+                <p className="text-sm text-gray-400">{unlockedCount} of {totalCount} collected · {Math.round(progress)}% complete</p>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-purple-400">{Math.round(progress)}%</div>
-              <div className="text-sm text-gray-400">Complete</div>
-            </div>
-          </div>
-          <div className="w-full bg-gray-700/50 rounded-full h-4 overflow-hidden">
-            <div 
-              className="bg-gradient-to-r from-purple-500 via-pink-500 to-yellow-400 h-4 rounded-full transition-all duration-1000 relative overflow-hidden"
-              style={{ width: `${progress}%` }}
+            <button
+              onClick={onClose}
+              className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-            </div>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          {totalCount - unlockedCount > 0 && (
-            <p className="text-xs text-center text-gray-500">
-              🎯 {totalCount - unlockedCount} more to complete your collection!
-            </p>
-          )}
         </div>
 
-        {/* Achievements Grid - 2 Columns */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {achievements.map((achievement, index) => {
-              const categoryBadge = getCategoryBadge(achievement.category);
-              return (
-                <div
-                  key={achievement.id}
-                  className={`p-4 rounded-xl transition-all relative overflow-hidden group ${
-                    achievement.unlocked 
-                      ? `bg-gradient-to-br ${getCategoryColor(achievement.category)} hover:scale-[1.02]` 
-                      : 'glass opacity-40 hover:opacity-60'
-                  }`}
-                  style={{
-                    animationDelay: `${index * 0.05}s`,
-                  }}
-                >
-                  {/* Category Badge */}
-                  {achievement.unlocked && (
-                    <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-black/30 backdrop-blur-sm text-xs flex items-center gap-1">
-                      <span>{categoryBadge.emoji}</span>
-                      <span className="text-white/80">{categoryBadge.name}</span>
-                    </div>
-                  )}
+        {/* Main Content - NO SCROLL, Bento Grid */}
+        <div className="p-6">
+          {/* Progress Bar */}
+          <div className="mb-6 glass-card rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-300">Collection Progress</span>
+              <span className="text-sm font-bold text-purple-400">{Math.round(progress)}%</span>
+            </div>
+            <div className="h-2 bg-black/30 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-amber-500 rounded-full transition-all duration-1000 relative"
+                style={{ width: `${progress}%` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+              </div>
+            </div>
+          </div>
 
-                  <div className="flex items-start gap-3">
-                    <div className={`text-5xl flex-shrink-0 transition-all group-hover:scale-110 ${
-                      achievement.unlocked ? '' : 'grayscale opacity-30'
-                    }`}>
-                      {achievement.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className={`font-bold text-lg mb-1 ${
-                        achievement.unlocked ? 'text-white' : 'text-gray-500'
-                      }`}>
-                        {achievement.name}
-                      </h4>
-                      <p className={`text-sm leading-relaxed ${
-                        achievement.unlocked ? 'text-gray-300' : 'text-gray-600'
-                      }`}>
-                        {achievement.description}
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0 text-2xl">
-                      {achievement.unlocked ? '✅' : '🔒'}
-                    </div>
+          {/* Bento Grid - 4x3 */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {achievements.map((achievement, i) => (
+              <div
+                key={achievement.id}
+                className={`group relative rounded-2xl bg-gradient-to-br ${getRarityGradient(achievement.rarity, achievement.unlocked)} border p-4 transition-all duration-300 ${
+                  achievement.unlocked 
+                    ? `hover:scale-105 hover:${getRarityGlow(achievement.rarity)} cursor-pointer` 
+                    : 'opacity-40'
+                }`}
+                style={{
+                  animationDelay: `${i * 30}ms`,
+                  animationFillMode: 'backwards'
+                }}
+              >
+                {/* Rarity Badge */}
+                {achievement.unlocked && (
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-sm text-[10px] font-bold uppercase tracking-wider">
+                    {achievement.rarity === 'legendary' && <span className="text-amber-400">★ Legendary</span>}
+                    {achievement.rarity === 'epic' && <span className="text-purple-400">◆ Epic</span>}
+                    {achievement.rarity === 'rare' && <span className="text-blue-400">● Rare</span>}
+                    {achievement.rarity === 'common' && <span className="text-gray-400">○ Common</span>}
                   </div>
+                )}
 
-                  {/* Shine effect on unlocked */}
-                  {achievement.unlocked && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                  )}
+                {/* Icon */}
+                <div className={`text-5xl mb-3 transition-all duration-300 ${
+                  achievement.unlocked 
+                    ? 'group-hover:scale-110 group-hover:-rotate-6' 
+                    : 'grayscale opacity-30'
+                }`}>
+                  {achievement.icon}
                 </div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Footer */}
-        <div className="glass-card rounded-2xl p-4">
-          <div className="flex items-center justify-around text-center">
-            <div>
-              <div className="text-green-400 font-bold text-2xl flex items-center justify-center gap-1">
-                <span>✅</span> {unlockedCount}
+                {/* Text */}
+                <div>
+                  <h4 className={`font-bold text-sm mb-1 ${
+                    achievement.unlocked ? 'text-white' : 'text-gray-600'
+                  }`}>
+                    {achievement.name}
+                  </h4>
+                  <p className={`text-xs ${
+                    achievement.unlocked ? 'text-gray-400' : 'text-gray-700'
+                  }`}>
+                    {achievement.description}
+                  </p>
+                </div>
+
+                {/* Status Icon */}
+                <div className="absolute bottom-2 right-2 text-lg">
+                  {achievement.unlocked ? '✅' : '🔒'}
+                </div>
+
+                {/* Shine Effect */}
+                {achievement.unlocked && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 rounded-2xl" />
+                )}
               </div>
-              <div className="text-gray-400 text-xs mt-1">Unlocked</div>
+            ))}
+          </div>
+
+          {/* Footer Stats */}
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            <div className="glass-card rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-green-400 mb-1">{unlockedCount}</div>
+              <div className="text-xs text-gray-400">Unlocked</div>
             </div>
-            <div className="w-px h-12 bg-white/10"></div>
-            <div>
-              <div className="text-gray-500 font-bold text-2xl flex items-center justify-center gap-1">
-                <span>🔒</span> {totalCount - unlockedCount}
+            <div className="glass-card rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-gray-500 mb-1">{totalCount - unlockedCount}</div>
+              <div className="text-xs text-gray-400">Locked</div>
+            </div>
+            <div className="glass-card rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-1">
+                {Math.round(progress)}%
               </div>
-              <div className="text-gray-400 text-xs mt-1">Locked</div>
-            </div>
-            <div className="w-px h-12 bg-white/10"></div>
-            <div>
-              <div className="text-purple-400 font-bold text-2xl">{Math.round(progress)}%</div>
-              <div className="text-gray-400 text-xs mt-1">Progress</div>
+              <div className="text-xs text-gray-400">Progress</div>
             </div>
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(147, 51, 234, 0.5);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(147, 51, 234, 0.7);
-        }
-      `}</style>
     </div>
   );
 };
