@@ -291,44 +291,27 @@ export default function ChatPage() {
     isProcessingRef.current = true;
 
     try {
-        // ✅ STEP 1: Sign wallet transaction FIRST
-        console.log("🔐 Step 1: Requesting wallet signature...");
+        // ✅ STEP 1: Sign wallet transaction FIRST (but don't update state yet!)
+        console.log("🔐 Requesting wallet signature...");
         await solanaService.interact(wallet);
-        console.log("✅ Wallet signed! Now getting AI response...");
+        console.log("✅ Signed! Getting AI response...");
         
-        // ✅ STEP 2: Update local state optimistically
-        setAikoData(prev => {
-        if (!prev) return prev;
+        // Calculate new values but DON'T update state
+        const newXP = Number(aikoData.xp.toString()) + 10;
+        const newLevel = Math.floor(newXP / 100) + 1;
+        const newInteractions = Number(aikoData.totalInteractions.toString()) + 1;
         
-        const newXP = prev.xp.add(new BN(10));
-        const newLevel = Math.floor(Number(newXP.toString()) / 100) + 1;
-        const previousLevel = prev.level;
-        
-        // Show level up notification
-        if (newLevel > previousLevel) {
-            setTimeout(() => showNotification(`🎉 Level Up! Now Level ${newLevel}!`), 500);
-        }
-        
-        return {
-            ...prev,
-            totalInteractions: prev.totalInteractions.add(new BN(1)),
-            xp: newXP,
-            level: newLevel,
-            lastInteraction: new BN(Math.floor(Date.now() / 1000))
-        };
-        });
-
-        // ✅ STEP 3: Get AI response AFTER wallet signed
+        // ✅ STEP 2: Get AI response with updated values
         const response = await deepseekService.chat(
         userMessage, 
         {
             owner: aikoData.owner.toBase58(),
-            level: aikoData.level,
-            xp: Number(aikoData.xp.toString()) + 10, // Use updated XP
-            total_interactions: Number(aikoData.totalInteractions.toString()) + 1, // Use updated count
+            level: newLevel,
+            xp: newXP,
+            total_interactions: newInteractions,
             last_interaction: Math.floor(Date.now() / 1000),
             streak: Number(aikoData.streak.toString()),
-            evolution_stage: getEvolutionStage(aikoData.level),
+            evolution_stage: getEvolutionStage(newLevel),
             userName: aikoData.userName || '',
             userCountry: aikoData.userCountry || '',
             memoryFlags: aikoData.memoryFlags || 0
@@ -339,30 +322,55 @@ export default function ChatPage() {
         }))
         );
 
-        // ✅ STEP 4: Show AIKO response
+        // ✅ STEP 3: Show AIKO response
         addAikoMessage(response.text, response.emotion as any, response.emoji);
-        showNotification('✅ +10 XP');
+
+        // ✅ STEP 4: Update state silently in background (after message shown)
+        setTimeout(() => {
+        setAikoData(prev => {
+            if (!prev) return prev;
+            
+            const updatedXP = prev.xp.add(new BN(10));
+            const updatedLevel = Math.floor(Number(updatedXP.toString()) / 100) + 1;
+            const previousLevel = prev.level;
+            
+            // Show level up notification
+            if (updatedLevel > previousLevel) {
+            setTimeout(() => showNotification(`🎉 Level Up! Now Level ${updatedLevel}!`), 300);
+            } else {
+            showNotification('✅ +10 XP');
+            }
+            
+            return {
+            ...prev,
+            totalInteractions: prev.totalInteractions.add(new BN(1)),
+            xp: updatedXP,
+            level: updatedLevel,
+            lastInteraction: new BN(Math.floor(Date.now() / 1000))
+            };
+        });
+        }, 100);
 
     } catch (error: any) {
-        console.error('❌ Transaction or chat failed:', error);
+        console.error('❌ Failed:', error);
         
         // Better error handling
         if (error.message?.includes('User rejected')) {
         addAikoMessage(
-            "Oh, you cancelled the transaction! 😅 That's okay, try again when you're ready!",
+            "Oh, you cancelled! 😅 That's okay, try again when you're ready!",
             'curious',
             '🤔'
         );
         } else if (error.message?.includes('Insufficient balance')) {
         addAikoMessage(
-            "Oops! You don't have enough SOL for gas fees. 😢 Please bridge some SOL from Sepolia!",
+            "Oops! Not enough SOL for gas fees. 😢 Please bridge some SOL!",
             'sad',
             '💸'
         );
-        showNotification('💰 Low balance! Bridge SOL needed');
+        showNotification('💰 Bridge SOL needed');
         } else {
         addAikoMessage(
-            "Oops! Something went wrong with the blockchain... 😅 Let's try again!",
+            "Something went wrong... 😅 Let's try again!",
             'sad',
             '💔'
         );
