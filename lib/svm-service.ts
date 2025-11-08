@@ -6,7 +6,7 @@ import {
   SystemProgram,
   LAMPORTS_PER_SOL
 } from '@solana/web3.js';
-import { WalletContextState } from '@/app/context/WalletProvider';
+import { WalletContextState } from '@solana/wallet-adapter-react';
 import BN from 'bn.js';
 import { sha256 } from 'js-sha256';
 
