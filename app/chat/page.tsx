@@ -60,7 +60,13 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  
+  const [isClient, setIsClient] = useState(false);
+
+  // ✅ FIX: Client-side only initialization
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // ✅ Optimized scroll system
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     requestAnimationFrame(() => {
@@ -345,7 +351,7 @@ export default function ChatPage() {
 
   // ✅ FIXED: handleSend dengan Hybrid Approach
   const handleSend = async () => {
-    if (!input.trim() || loading || !aikoData || !publicKey || !provider) return;
+    if (!input.trim() || loading || !aikoData || !publicKey || !provider || !isClient) return;
 
     const userMessage = input.trim();
     setInput('');
@@ -508,7 +514,27 @@ export default function ChatPage() {
   // Check free chat status untuk UI indicator
   const hasFreeChatAvailable = localStorage.getItem('aiko_free_chat_used') !== 'true';
 
+
+
   // Loading states - SEMUA CONDITIONAL RETURNS SETELAH HOOKS
+  if (!isClient) {
+    return (
+      <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
+        <div className="text-center p-8 z-10">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="text-7xl mb-6"
+          >
+            🔄
+          </motion.div>
+          <h2 className="text-3xl font-bold text-white mb-4">Loading AIKO Chat...</h2>
+          <p className="text-purple-300">Preparing your chat experience</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isConnected) {
     return (
       <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
