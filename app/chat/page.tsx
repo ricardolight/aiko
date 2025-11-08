@@ -425,25 +425,31 @@ export default function ChatPage() {
   };
 
   // Loading states
-  if (!isConnected) {
+    if (!isConnected) {
     return (
-      <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
+        <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
         <div className="text-center p-8 glass-card rounded-2xl shadow-xl z-10">
-          <h2 className="text-3xl font-bold text-white mb-4">Connect Your Wallet</h2>
-          <p className="text-purple-300 mb-8">
+            <h2 className="text-3xl font-bold text-white mb-4">Connect Your Wallet</h2>
+            <p className="text-purple-300 mb-8">
             You need to connect your wallet to chat with AIKO.
-          </p>
+            </p>
+            
+            {/* FIX: Button di-center dengan flex */}
+            <div className="flex justify-center">
             <WalletModalButton className="group relative px-8 py-4 rounded-2xl transition-all">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl group-hover:shadow-2xl group-hover:shadow-purple-500/50 transition-all" />
-            <div className="relative flex items-center gap-2 text-white font-semibold">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl group-hover:shadow-2xl group-hover:shadow-purple-500/50 transition-all" />
+                <div className="relative flex items-center gap-2 text-white font-semibold">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
                 <span>Connect Wallet</span>
-            </div>
+                </div>
             </WalletModalButton>
+            </div>
         </div>
-      </div>
+        </div>
     );
-  }
+    }
 
   if (aikoLoading && !errorType) {
     return (
