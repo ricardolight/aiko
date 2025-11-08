@@ -1,7 +1,8 @@
 // app/layout.tsx
 import type { Metadata } from "next";
 import "./globals.css";
-import dynamic from "next/dynamic"; // 1. Impor 'dynamic' dari Next.js
+// 1. Impor wrapper 'Providers' baru kita
+import { Providers } from "@/app/providers"; 
 
 export const metadata: Metadata = {
   title: "AIKO - Your AI Companion on CARV SVM",
@@ -12,14 +13,7 @@ export const metadata: Metadata = {
   },
 };
 
-// 2. Gunakan 'dynamic import' untuk memuat provider
-//    Ini adalah perbaikan untuk error "client-side exception"
-const SolanaProvider = dynamic(
-  () => import('@/app/context/WalletProvider').then((mod) => mod.SolanaProvider),
-  { 
-    ssr: false // 3. Paksa untuk HANYA render di client-side (browser)
-  } 
-);
+// 2. HAPUS SEMUA kode 'next/dynamic' (sudah tidak perlu)
 
 export default function RootLayout({
   children,
@@ -32,10 +26,15 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body className="antialiased">
-        {/* 4. Provider ini sekarang aman dan tidak akan crash di server */}
-        <SolanaProvider>
+        {/* 3. Gunakan <Providers /> di sini.
+             Karena 'Providers' adalah Client Component ('use client'),
+             dia akan membuat "Client Boundary". 
+             Semua yang ada di dalamnya (termasuk SolanaProvider)
+             akan aman di-render di browser, BUKAN di server.
+        */}
+        <Providers>
           {children}
-        </SolanaProvider>
+        </Providers>
       </body>
     </html>
   );
