@@ -5,31 +5,115 @@ interface Achievement {
   name: string;
   unlocked: boolean;
   icon: string;
-  description?: string;
+  description: string;
 }
 
-const AchievementSystem = () => {
+interface Props {
+  aikoData: {
+    totalInteractions: any;
+    streak: any;
+    level: number;
+    xp: any;
+  };
+  knowsName: boolean;
+  knowsCountry: boolean;
+}
+
+const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   
+  // Real achievement data based on aikoData
   const achievements: Achievement[] = [
-    { id: 1, name: "First Steps", unlocked: true, icon: "👣", description: "Complete your first chat" },
-    { id: 2, name: "Conversationalist", unlocked: false, icon: "💬", description: "Send 100 messages" },
-    { id: 3, name: "Varrion", unlocked: true, icon: "⚔️", description: "Reach Level 10" },
-    { id: 4, name: "Dedicated", unlocked: true, icon: "⭐", description: "Login for 7 consecutive days" },
-    { id: 5, name: "Hatchling", unlocked: false, icon: "🐣", description: "Hatch your first companion" },
-    { id: 6, name: "Companion", unlocked: true, icon: "🤝", description: "Unlock a companion" },
-    { id: 7, name: "Soulmate", unlocked: false, icon: "💖", description: "Reach max bond level" },
-    { id: 8, name: "Memory Keeper", unlocked: false, icon: "🧠", description: "Save 50 memories" },
-    { id: 9, name: "Century Club", unlocked: false, icon: "💯", description: "Reach level 100" },
-    { id: 10, name: "XP Master", unlocked: false, icon: "🎯", description: "Earn 10,000 XP" },
-    { id: 11, name: "Early Adopter", unlocked: false, icon: "🚀", description: "Join in beta phase" },
-    { id: 12, name: "Legendary", unlocked: false, icon: "🏆", description: "Unlock all achievements" }
+    { 
+      id: 1, 
+      name: "First Steps", 
+      unlocked: Number(aikoData.totalInteractions.toString()) >= 1, 
+      icon: "👶", 
+      description: "Send first message" 
+    },
+    { 
+      id: 2, 
+      name: "Conversationalist", 
+      unlocked: Number(aikoData.totalInteractions.toString()) >= 10, 
+      icon: "💬", 
+      description: "10 conversations" 
+    },
+    { 
+      id: 3, 
+      name: "Week Warrior", 
+      unlocked: Number(aikoData.streak.toString()) >= 7, 
+      icon: "🔥", 
+      description: "7 day streak" 
+    },
+    { 
+      id: 4, 
+      name: "Dedicated", 
+      unlocked: Number(aikoData.streak.toString()) >= 30, 
+      icon: "⭐", 
+      description: "30 day streak" 
+    },
+    { 
+      id: 5, 
+      name: "Hatchling", 
+      unlocked: aikoData.level >= 5, 
+      icon: "🐣", 
+      description: "Reach Level 5" 
+    },
+    { 
+      id: 6, 
+      name: "Companion", 
+      unlocked: aikoData.level >= 10, 
+      icon: "🌸", 
+      description: "Reach Level 10" 
+    },
+    { 
+      id: 7, 
+      name: "Soulmate", 
+      unlocked: aikoData.level >= 20, 
+      icon: "✨", 
+      description: "Reach Level 20" 
+    },
+    { 
+      id: 8, 
+      name: "Memory Keeper", 
+      unlocked: knowsName && knowsCountry, 
+      icon: "🧠", 
+      description: "Complete profile" 
+    },
+    { 
+      id: 9, 
+      name: "Century Club", 
+      unlocked: Number(aikoData.totalInteractions.toString()) >= 100, 
+      icon: "💯", 
+      description: "100 interactions" 
+    },
+    { 
+      id: 10, 
+      name: "XP Master", 
+      unlocked: Number(aikoData.xp.toString()) >= 1000, 
+      icon: "🎯", 
+      description: "1000 XP earned" 
+    },
+    { 
+      id: 11, 
+      name: "Early Adopter", 
+      unlocked: true, 
+      icon: "🚀", 
+      description: "Joined AIKO" 
+    },
+    { 
+      id: 12, 
+      name: "Legendary", 
+      unlocked: aikoData.level >= 50, 
+      icon: "👑", 
+      description: "Reach Level 50" 
+    }
   ];
 
   const unlockedCount = achievements.filter(a => a.unlocked).length;
   const totalCount = achievements.length;
   const progress = (unlockedCount / totalCount) * 100;
-  const hasNewAchievement = true; // Backend logic nanti
+  const hasNewAchievement = achievements.some(a => a.unlocked); // Simple logic for now
 
   return (
     <>

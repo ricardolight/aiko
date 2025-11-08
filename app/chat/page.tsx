@@ -823,7 +823,11 @@ export default function ChatPage() {
               </div>
 
               {/* ✅ ACHIEVEMENT BUTTON */}
-                <AchievementSystem />
+                <AchievementSystem 
+                  aikoData={aikoData}
+                  knowsName={knowsName}
+                  knowsCountry={knowsCountry}
+                />
 
               {/* ✅ SETTINGS BUTTON */}
               <button
