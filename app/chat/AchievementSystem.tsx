@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface Achievement {
   id: number;
@@ -23,12 +23,6 @@ interface Props {
 
 const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-
-  // ✅ FIX: Client-side only check
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Real achievement data based on aikoData
   const achievements: Achievement[] = [
@@ -121,26 +115,7 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
   const unlockedCount = achievements.filter(a => a.unlocked).length;
   const totalCount = achievements.length;
   const progress = (unlockedCount / totalCount) * 100;
-  
-  // ✅ FIX: Client-side only check untuk hasNewAchievement
-  const hasNewAchievement = isClient && achievements.some(a => a.unlocked);
-
-  // ✅ FIX: Client-side only check untuk free chat status
-  const hasFreeChatAvailable = isClient && localStorage.getItem('aiko_free_chat_used') !== 'true';
-
-  if (!isClient) {
-    // ✅ Return skeleton/simplified version selama SSR
-    return (
-      <div className="relative">
-        <button 
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
-          title="Achievements"
-        >
-          <span className="text-2xl group-hover:scale-110 transition-transform">🏆</span>
-        </button>
-      </div>
-    );
-  } // ✅ FIX: TAMBAHKAN INI - tutup curly brace untuk if statement!
+  const hasNewAchievement = achievements.some(a => a.unlocked);
 
   return (
     <>
