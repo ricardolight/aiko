@@ -115,139 +115,141 @@ const AchievementSystem = ({ aikoData, knowsName, knowsCountry }: Props) => {
   const unlockedCount = achievements.filter(a => a.unlocked).length;
   const totalCount = achievements.length;
   const progress = (unlockedCount / totalCount) * 100;
-  const hasNewAchievement = achievements.some(a => a.unlocked);
 
   return (
     <>
       {/* Achievement Icon Button */}
-      <div className="relative">
-        <button 
-          onClick={() => setIsPopupOpen(!isPopupOpen)}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
-          title="Achievements"
-        >
-          <span className="text-2xl group-hover:scale-110 transition-transform inline-block">🏆</span>
-        </button>
-        {hasNewAchievement && (
-          <div className="absolute top-1 right-1 w-3 h-3 bg-orange-400 rounded-full border-2 border-gray-900 animate-pulse"></div>
+      <button 
+        onClick={() => setIsPopupOpen(!isPopupOpen)}
+        className="relative p-2 hover:bg-white/10 rounded-lg transition-colors group"
+        title="Achievements"
+      >
+        <span className="text-2xl group-hover:scale-110 transition-transform inline-block">🏆</span>
+        {unlockedCount > 0 && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-gray-900">
+            {unlockedCount}
+          </div>
         )}
-      </div>
+      </button>
 
-      {/* ✅ FIXED: Center Modal Popup */}
+      {/* ✅ NEW: Slide from TOP - Doesn't interfere with anything! */}
       <AnimatePresence>
         {isPopupOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100]"
-            onClick={() => setIsPopupOpen(false)}
-          >
+          <>
+            {/* Backdrop */}
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', damping: 25 }}
-              className="glass-card rounded-2xl w-full max-w-md max-h-[85vh] overflow-hidden border border-white/20 shadow-2xl z-[101]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+              onClick={() => setIsPopupOpen(false)}
+            />
+
+            {/* Popup Panel - Slides from TOP */}
+            <motion.div
+              initial={{ y: '-100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '-100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl z-[101] p-4 pt-20"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="flex justify-between items-center p-5 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <span>🏆</span> Achievements
-                </h2>
-                <button 
-                  onClick={() => setIsPopupOpen(false)}
-                  className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Progress Section */}
-              <div className="p-5 border-b border-white/10 bg-gradient-to-br from-purple-500/5 to-blue-500/5">
-                <div className="flex justify-between text-sm mb-3">
-                  <span className="font-semibold text-gray-200">
-                    {unlockedCount} of {totalCount} unlocked
-                  </span>
-                  <span className="text-purple-300 font-bold">{Math.round(progress)}%</span>
-                </div>
-                <div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                    className="bg-gradient-to-r from-purple-500 via-pink-500 to-blue-400 h-3 rounded-full relative overflow-hidden"
+              <div className="glass-card rounded-2xl overflow-hidden border border-white/20 shadow-2xl max-h-[85vh] flex flex-col">
+                {/* Header */}
+                <div className="flex justify-between items-center p-5 border-b border-white/10 bg-gradient-to-r from-purple-500/20 to-pink-500/20">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">🏆</span>
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Achievements</h2>
+                      <p className="text-xs text-purple-300">{unlockedCount} of {totalCount} unlocked</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsPopupOpen(false)}
+                    className="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 text-2xl leading-none"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                  </motion.div>
+                    ×
+                  </button>
                 </div>
-                <p className="text-xs text-gray-400 mt-3 text-center">
-                  🎯 {totalCount - unlockedCount} more to legendary status!
-                </p>
-              </div>
 
-              {/* Achievements List */}
-              <div className="overflow-y-auto max-h-[50vh]">
-                <div className="p-2">
-                  {achievements.map((achievement, index) => (
-                    <motion.div
-                      key={achievement.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className={`p-3 rounded-xl mb-2 transition-all ${
-                        achievement.unlocked 
-                          ? 'bg-white/5 hover:bg-white/10' 
-                          : 'opacity-40'
-                      }`}
+                {/* Progress Bar */}
+                <div className="p-5 border-b border-white/10 bg-gradient-to-br from-purple-500/5 to-pink-500/5">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-300">Progress</span>
+                    <span className="text-purple-300 font-bold">{Math.round(progress)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
+                      className="bg-gradient-to-r from-purple-500 via-pink-500 to-purple-400 h-3 rounded-full relative overflow-hidden"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className={`text-3xl p-3 rounded-xl flex-shrink-0 ${
-                          achievement.unlocked 
-                            ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 ring-2 ring-yellow-500/30' 
-                            : 'bg-gray-700/50 grayscale'
-                        }`}>
-                          {achievement.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className={`font-semibold text-base mb-1 ${
-                            achievement.unlocked ? 'text-white' : 'text-gray-500'
-                          }`}>
-                            {achievement.name}
-                          </h3>
-                          <p className="text-xs text-gray-400">
-                            {achievement.description}
-                          </p>
-                        </div>
-                        <div className={`text-2xl flex-shrink-0 ${achievement.unlocked ? '' : 'opacity-30'}`}>
-                          {achievement.unlocked ? '✅' : '🔒'}
-                        </div>
-                      </div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
                     </motion.div>
-                  ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Footer Stats */}
-              <div className="p-5 border-t border-white/10 bg-gradient-to-r from-purple-500/5 to-blue-500/5">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-green-400 font-bold text-2xl">{unlockedCount}</div>
-                    <div className="text-gray-400 text-xs">Unlocked</div>
+                {/* Achievements Grid - Scrollable */}
+                <div className="overflow-y-auto flex-1 p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {achievements.map((achievement, index) => (
+                      <motion.div
+                        key={achievement.id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.05, duration: 0.2 }}
+                        className={`p-4 rounded-xl border transition-all ${
+                          achievement.unlocked 
+                            ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30 hover:border-purple-500/50' 
+                            : 'bg-gray-800/30 border-gray-700/30 opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`text-4xl flex-shrink-0 ${achievement.unlocked ? '' : 'grayscale opacity-50'}`}>
+                            {achievement.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className={`font-semibold mb-1 ${
+                              achievement.unlocked ? 'text-white' : 'text-gray-500'
+                            }`}>
+                              {achievement.name}
+                            </h3>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                              {achievement.description}
+                            </p>
+                          </div>
+                          <div className="flex-shrink-0 text-xl">
+                            {achievement.unlocked ? '✅' : '🔒'}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                  <div>
-                    <div className="text-gray-400 font-bold text-2xl">{totalCount - unlockedCount}</div>
-                    <div className="text-gray-400 text-xs">Locked</div>
-                  </div>
-                  <div>
-                    <div className="text-purple-400 font-bold text-2xl">{Math.round(progress)}%</div>
-                    <div className="text-gray-400 text-xs">Complete</div>
+                </div>
+
+                {/* Footer Stats */}
+                <div className="p-4 border-t border-white/10 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+                  <div className="flex items-center justify-around text-center">
+                    <div>
+                      <div className="text-green-400 font-bold text-2xl">{unlockedCount}</div>
+                      <div className="text-gray-400 text-xs">Unlocked</div>
+                    </div>
+                    <div className="w-px h-8 bg-white/10"></div>
+                    <div>
+                      <div className="text-gray-400 font-bold text-2xl">{totalCount - unlockedCount}</div>
+                      <div className="text-gray-400 text-xs">Remaining</div>
+                    </div>
+                    <div className="w-px h-8 bg-white/10"></div>
+                    <div>
+                      <div className="text-purple-400 font-bold text-2xl">{Math.round(progress)}%</div>
+                      <div className="text-gray-400 text-xs">Complete</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
     </>
