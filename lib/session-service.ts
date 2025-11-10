@@ -167,11 +167,6 @@ class SessionService {
     };
   }
 
-  // 🚀 REMOVED: Count-based sync function
-  // shouldSync(session: SessionData): boolean {
-  //   return session.pendingInteractions.length >= this.MAX_PENDING;
-  // }
-
   needsDailySync(userId: string): boolean {
     const session = this.getSession(userId);
     if (!session) return false;
@@ -206,23 +201,25 @@ class SessionService {
     const pendingCount = session.pendingInteractions.filter(i => !i.synced).length;
     const needsDailySync = this.needsDailySync(userId);
 
-    // 🚀 REMOVED: Count-based sync
-    const needsSync = false;
+    // 🚀 FIX: Sync Now selalu nyala selama ada pending messages
+    const canSync = pendingCount > 0;
 
     let reason = '';
     if (needsDailySync) {
       reason = '🔥 Daily sync required to maintain streak!';
-    } else {
+    } else if (pendingCount > 0) {
       reason = `${pendingCount} messages pending`;
+    } else {
+      reason = 'No pending messages';
     }
 
     return {
-      needsSync,
+      needsSync: false,
       needsDailySync,
       reason,
       pendingCount,
       lastSyncDay: session.lastSyncDayUTC,
-      canSync: pendingCount > 0 && needsDailySync, // Only sync when daily requirement
+      canSync,
     };
   }
 

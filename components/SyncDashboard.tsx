@@ -15,7 +15,7 @@ interface SyncDashboardProps {
 }
 
 export default function SyncDashboard({ isOpen, onClose, onSyncComplete, isDailySync = false }: SyncDashboardProps) {
-  const walletContext = useWallet(); // Rename for clarity
+  const walletContext = useWallet();
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,52 +34,51 @@ export default function SyncDashboard({ isOpen, onClose, onSyncComplete, isDaily
     const batch = sessionService.prepareSyncBatch(userId);
 
     if (!batch) {
-        setError('No data to sync');
-        return;
+      setError('No data to sync');
+      return;
     }
 
     setSyncing(true);
     setError(null);
 
     try {
-        console.log(`🔄 Batch syncing ${batch.interactionCount} interactions...`);
+      console.log(`🔄 Batch syncing ${batch.interactionCount} interactions...`);
 
-        // ✅ GUNAKAN BATCH FUNCTION BARU
-        const signatures = await solanaService.batchInteract(
+      // 🚀 GUNAKAN BATCH FUNCTION BARU
+      const signature = await solanaService.batchInteract(
         walletContext,
         batch.interactionCount
-        );
+      );
 
-        console.log(`✅ ${batch.interactionCount} interactions synced in ${signatures.length} transactions!`);
+      console.log('✅ All interactions synced in ONE transaction!');
 
-        // Mark as synced
-        sessionService.markSynced(userId);
+      // Mark as synced
+      sessionService.markSynced(userId);
 
-        // Refresh status
-        const newStatus = sessionService.getSyncStatus(userId);
-        setSyncStatus(newStatus);
+      // Refresh status
+      const newStatus = sessionService.getSyncStatus(userId);
+      setSyncStatus(newStatus);
 
-        setTimeout(() => {
+      setTimeout(() => {
         onSyncComplete();
         onClose();
-        }, 1500);
+      }, 1500);
 
     } catch (err: any) {
-        console.error('❌ Sync failed:', err);
-        
-        if (err.message?.includes('User rejected')) {
+      console.error('❌ Sync failed:', err);
+      
+      if (err.message?.includes('User rejected')) {
         setError('Sync cancelled. Your streak may reset if you don\'t sync today!');
-        } else if (err.message?.includes('Insufficient')) {
+      } else if (err.message?.includes('Insufficient')) {
         setError('Not enough SOL for gas. Please add SOL to your wallet.');
-        } else {
+      } else {
         setError(err.message || 'Sync failed. Please try again.');
-        }
+      }
     } finally {
-        setSyncing(false);
+      setSyncing(false);
     }
   };
 
-  // Update all references from wallet to walletContext
   if (!isOpen || !syncStatus) return null;
 
   return (
@@ -89,7 +88,7 @@ export default function SyncDashboard({ isOpen, onClose, onSyncComplete, isDaily
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        onClick={isDailySync ? undefined : onClose}
+        onClick={isDailySync ? undefined : onClose} // ❌ Daily sync ga bisa di-close
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
@@ -111,6 +110,7 @@ export default function SyncDashboard({ isOpen, onClose, onSyncComplete, isDaily
                 </>
               )}
             </h2>
+            {/* ❌ HAPUS CLOSE BUTTON UNTUK DAILY SYNC */}
             {!isDailySync && (
               <button
                 onClick={onClose}
@@ -201,6 +201,7 @@ export default function SyncDashboard({ isOpen, onClose, onSyncComplete, isDaily
 
           {/* Actions */}
           <div className="flex gap-3">
+            {/* ❌ HAPUS TOMBOL "LATER" UNTUK DAILY SYNC */}
             {!isDailySync && (
               <button
                 onClick={onClose}
@@ -212,7 +213,7 @@ export default function SyncDashboard({ isOpen, onClose, onSyncComplete, isDaily
             )}
             <button
               onClick={handleSync}
-              disabled={!syncStatus.canSync || syncing || !walletContext.connected}
+              disabled={!syncStatus.canSync || syncing}
               className={`${isDailySync ? 'w-full' : 'flex-1'} group relative px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all`}
             >
               <div className={`absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl transition-all ${
