@@ -48,7 +48,7 @@ class SvmService {
     this.connection = new Connection(RPC_URL, 'confirmed');
   }
 
-  // ✅ TAMBAHKAN: Function untuk check balance
+  // ✅ Function untuk check balance
   async getBalance(wallet: WalletContextState): Promise<number> {
     if (!wallet.publicKey) {
       throw new Error('Wallet not connected');
@@ -65,7 +65,7 @@ class SvmService {
     }
   }
 
-  // ✅ TAMBAHKAN: Function untuk check minimum balance
+  // ✅ Function untuk check minimum balance
   private async checkMinimumBalance(wallet: WalletContextState, operation: string = 'transaction'): Promise<void> {
     const balance = await this.getBalance(wallet);
     
@@ -364,6 +364,90 @@ class SvmService {
       }
       
       throw new Error(`Interact failed: ${error.message}`);
+    }
+  }
+
+  // 🚀 NEW: Batch Interact Function
+  async batchInteract(wallet: WalletContextState, interactionCount: number): Promise<string> {
+    if (!wallet.publicKey || !wallet.signTransaction) {
+      throw new Error('Wallet not ready');
+    }
+
+    try {
+      console.log(`🔄 BLIND TEST: ${interactionCount} interactions in 1 transaction!`);
+      await this.checkMinimumBalance(wallet, 'mega batch');
+
+      const [aikoPda] = this.getAikoPda(wallet.publicKey);
+      
+      // 🚀 BUAT SEMUA INSTRUCTIONS TANPA CHECK SIZE!
+      const instructions: TransactionInstruction[] = [];
+      
+      for (let i = 0; i < interactionCount; i++) {
+        const instruction = new TransactionInstruction({
+          keys: [
+            { pubkey: aikoPda, isSigner: false, isWritable: true },
+            { pubkey: wallet.publicKey, isSigner: false, isWritable: false },
+            { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+          ],
+          programId: PROGRAM_ID,
+          data: INTERACT_DISCRIMINATOR,
+        });
+        instructions.push(instruction);
+      }
+
+      console.log(`📦 Created ${instructions.length} instructions - SENDING BLINDLY!`);
+      
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+
+      const transaction = new Transaction({
+        feePayer: wallet.publicKey,
+        blockhash,
+        lastValidBlockHeight,
+      }).add(...instructions);
+
+      console.log('📝 Signing ONCE for all interactions...');
+      const signed = await wallet.signTransaction(transaction);
+
+      console.log('📤 Sending MEGA transaction (pray mode)...');
+      const signature = await this.connection.sendRawTransaction(
+        signed.serialize(),
+        { 
+          skipPreflight: true, // Biar cepet, ga check size dulu
+          preflightCommitment: 'confirmed' 
+        }
+      );
+
+      console.log('⏳ Confirming...', signature);
+      const confirmation = await this.connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+
+      if (confirmation.value.err) {
+        console.log('❌ Failed, probably size limit');
+        throw new Error(`Transaction failed - likely too large for CARV SVM`);
+      }
+
+      console.log(`🎉 ${interactionCount} interactions in 1 SIGNATURE! CARV SVM BISA!`, signature);
+      return signature;
+
+    } catch (error: any) {
+      console.error('❌ Mega batch failed:', error);
+      
+      // Fallback ke batch kecil otomatis
+      console.log('🔄 Falling back to 10-per-batch...');
+      const BATCH_SIZE = 10;
+      const totalBatches = Math.ceil(interactionCount / BATCH_SIZE);
+      const signatures: string[] = [];
+      
+      for (let i = 0; i < totalBatches; i++) {
+        const batchCount = Math.min(BATCH_SIZE, interactionCount - (i * BATCH_SIZE));
+        const sig = await this.batchInteract(wallet, batchCount); // Recursive call dengan batch kecil
+        signatures.push(sig);
+      }
+      
+      return signatures[0]; // Return first signature aja
     }
   }
 

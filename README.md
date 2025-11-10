@@ -6,7 +6,7 @@
 ![CARV SVM](https://img.shields.io/badge/CARV-SVM%20Testnet-pink?style=for-the-badge)
 ![Hackathon](https://img.shields.io/badge/Hackathon-2025-blue?style=for-the-badge)
 
-**The first AI companion that truly remembers you - forever stored on blockchain.**
+**Your AI companion that remembers you forever - with smart blockchain sync.**
 
 [🚀 Live Demo](https://aiko-seven.vercel.app/) | [📹 Demo Video](https://youtu.be/C7-NSZ4tnzU)
 
@@ -16,9 +16,9 @@
 
 ## 🎯 What is AIKO?
 
-AIKO is an **AI companion on CARV SVM blockchain** that grows with you through real on-chain interactions. Unlike traditional AI chatbots that forget you, AIKO stores your memories, level, and progress permanently on-chain.
+AIKO is an **AI companion on CARV SVM blockchain** that grows with you through hybrid on-chain/off-chain interactions. Unlike traditional AI chatbots, AIKO stores your core memories and progress permanently on-chain while providing smooth chat experience.
 
-**Key Innovation:** Every chat is a blockchain transaction. Your companion truly remembers you - forever.
+**Key Innovation:** Chat freely without signatures + Daily sync to blockchain = Best of both worlds!
 
 ---
 
@@ -27,18 +27,24 @@ AIKO is an **AI companion on CARV SVM blockchain** that grows with you through r
 ### 🧠 On-Chain Memory
 - **Name & Country** stored permanently on CARV SVM
 - **Memory flags** track verified information (bitwise: 0x01 = name, 0x02 = country)
-- **Immutable** - memories never disappear
+- **Immutable** - core memories never disappear
+
+### 🔄 Smart Sync System
+- **Chat without signatures** - All interactions saved locally first
+- **Once-per-day sync** - Batch sync to blockchain for efficiency
+- **Gas optimization** - Pay only for daily summary, not per message
+- **Streak protection** - Must sync within 24h to maintain streak
 
 ### 📈 Evolution System
 - **4 Stages:** Egg (Lv 1-4) → Hatchling (Lv 5-9) → Companion (Lv 10-19) → Soulmate (Lv 20+)
-- **10 XP per interaction** stored on-chain
+- **10 XP per interaction** stored on-chain after sync
 - **100 XP per level** - fair progression
 
 ### 🎮 Gamification
 - **12 Achievement Badges** across 4 rarity tiers (Common, Rare, Epic, Legendary)
+- **Real-time achievement unlocks** with instant feedback
 - **Daily Streaks** with UTC day logic
-- **Global Leaderboard** on live dashboard
-- **Level progression** all on-chain
+- **Level progression** verified on-chain
 
 ### 📊 Live Dashboard
 - Real-time stats from CARV SVM
@@ -53,6 +59,7 @@ AIKO is an **AI companion on CARV SVM blockchain** that grows with you through r
 **Blockchain:** CARV SVM Testnet • Rust/Anchor • Solana Web3.js  
 **Frontend:** Next.js 15 • TypeScript • Tailwind CSS • Framer Motion  
 **AI:** DeepSeek API • Custom prompts • Emotion detection  
+**Storage:** Hybrid (On-chain + Local Storage)  
 **Deploy:** Vercel • Solana Playground (smart contracts)
 
 ---
@@ -63,7 +70,34 @@ AIKO is an **AI companion on CARV SVM blockchain** that grows with you through r
 2. **Connect Wallet** (Backpack recommended)
 3. **Get SOL:** [CARV Bridge](https://bridge.testnet.carv.io) (~0.01 SOL needed)
 4. **Initialize AIKO** (~0.001 SOL one-time)
-5. **Start Chatting!** (Each message ~0.0001 SOL + 10 XP)
+5. **Start Chatting!** (Free locally + Daily sync ~0.0001 SOL per interaction)
+
+---
+
+## 🔄 Data Storage & Portability
+
+### 🧠 **On-Chain Forever**
+- ✅ Your identity (name, country)
+- ✅ Core progress (XP, level, streak) 
+- ✅ Total interaction count
+- ✅ Memory verification flags
+- ✅ Last sync timestamp
+
+### 💾 **Local & Private** (This Browser)
+- 🔄 Achievement progress & unlocks
+- 🔄 Chat message history (your privacy!)
+- 🔄 UI preferences & theme settings
+- 🔄 Temporary session data
+
+### 🏆 **Achievement System**
+- **Real-Time Display:** Unlocks instantly in your browser
+- **Blockchain Verification:** Becomes permanent after daily sync
+- **Example Flow:**
+  - **Day 1:** Chat 10x → "Conversationalist" unlocked locally ✅
+  - **Day 2:** Sync transactions → Achievement verified on-chain ✅
+  - **Forever:** Achievement permanently stored 🏆
+
+> 💡 **Pro Tip:** Sync daily to keep your achievements safe and progress accurate!
 
 ---
 
@@ -81,40 +115,40 @@ pub struct AIKO {
     pub user_name: String,          // Your name (max 32 chars)
     pub user_country: String,       // Your country (max 32 chars)
     pub memory_flags: u8,           // What AIKO knows (bitwise)
+    pub last_sync_day: i64,         // UTC day of last sync
 }
 ```
-**Total:** 146 bytes per user
+**Total:** 154 bytes per user
 
 ### Instructions
 - `initialize` - Create AIKO account (PDA-based)
-- `interact` - Chat (+10 XP, level up logic, streak update)
+- `interact` - Sync interactions (+10 XP each, level up logic, streak update)
 - `update_memory` - Store name/country on-chain
 
-### Key Features
-- ✅ Every chat requires wallet signature
-- ✅ XP and level stored on-chain
-- ✅ Daily streak with UTC day calculation
-- ✅ Permanent memory storage
-- ✅ Owner-only access control
+### Sync Logic
+- **Chat Freely:** No signatures required for daily conversations
+- **Batch Sync:** Multiple interactions in one transaction
+- **Daily Requirement:** Sync within 24h to maintain streak
+- **Gas Efficient:** ~0.0001 SOL per interaction when synced
 
 ---
 
 ## 🎯 What Makes AIKO Unique
 
-| Feature | AIKO | Traditional AI |
-|---------|:----:|:--------------:|
-| Blockchain Storage | ✅ | ❌ |
-| Permanent Memory | ✅ | ❌ |
-| True Ownership | ✅ | ❌ |
-| On-Chain XP/Levels | ✅ | ❌ |
-| Daily Streaks | ✅ | ❌ |
-| Decentralized | ✅ | ❌ |
+| Feature | AIKO | Traditional AI | Other Web3 AI |
+|---------|:----:|:--------------:|:-------------:|
+| Privacy-First Chat | ✅ | ❌ | ❌ |
+| Daily Batch Sync | ✅ | ❌ | ❌ |
+| Gas Efficiency | ✅ | ❌ | ❌ |
+| Permanent Memory | ✅ | ❌ | ⚠️ |
+| True Ownership | ✅ | ❌ | ✅ |
+| Instant UX | ✅ | ✅ | ❌ |
 
-**vs Other Hackathon Projects:**
-- Real AI conversations (DeepSeek)
-- Actual blockchain integration (not just UI)
-- Live dashboard with real on-chain data
-- Working gamification system
+**Key Differentiators:**
+- Real AI conversations (DeepSeek) with emotional intelligence
+- Hybrid architecture for optimal user experience
+- Actual blockchain integration with working product
+- Privacy-focused design (chat content stays local)
 
 ---
 
@@ -125,22 +159,22 @@ pub struct AIKO {
 
 ### ✅ What Works
 - On-chain memory (name & country)
-- XP/leveling system (10 XP per chat, 100 per level)
-- Daily streak tracking (UTC-based)
-- 12 achievements with 4 rarity tiers
+- Hybrid XP/leveling system (10 XP per chat, 100 per level)
+- Daily streak tracking with sync requirement
+- 12 achievements with real-time unlocks + blockchain verification
 - Live dashboard with real blockchain data
 - Evolution system (4 stages)
-- Global leaderboard (top 5)
-- Recent activities feed
+- Smart sync system (local first → blockchain batch)
 - Mobile responsive UI
 
 ### 💪 Technical Challenges Solved
-- Efficient on-chain storage (146 bytes per user)
-- Wallet-first UX (every chat = transaction)
-- Real-time blockchain queries
-- Daily streak logic on-chain
+- Efficient on-chain storage (154 bytes per user)
+- Hybrid architecture design (local + blockchain)
+- Batch transaction processing
+- Daily streak logic with sync validation
+- Real-time achievement system
 - CARV SVM deployment via Solana Playground
-- Achievement system without on-chain storage
+- Privacy-preserving chat storage
 
 **Program ID:** `5v3BSZA3xPYAnir7RFpRX4evtSm9tqfQPgY9vrLxaP4r`
 
@@ -148,16 +182,16 @@ pub struct AIKO {
 
 ## 🔮 Future Potential
 
-Current features prove the core concept: **AI with permanent blockchain memory**.
+Current implementation proves **hybrid AI-blockchain architecture** with optimal user experience.
 
-**Possible enhancements:**
-- Extended profiles (hobbies, interests)
-- Social features (friend system)
-- Voice interactions
-- Mobile native apps
-- Additional customization
+**Possible Enhancements:**
+- On-chain achievement verification for major milestones
+- Social features (friend system, achievement sharing)
+- Voice interactions and multimedia support
+- Mobile native apps with secure local storage
+- Extended profile system (hobbies, interests)
 
-> Architecture designed for extensibility while maintaining backward compatibility.
+> Architecture designed for extensibility while maintaining privacy and user experience.
 
 ---
 
@@ -206,7 +240,7 @@ anchor deploy --provider.cluster https://rpc.testnet.carv.io/rpc
 
 ## 🔍 Verification
 
-All data verifiable on CARV SVM blockchain:
+All on-chain data verifiable on CARV SVM blockchain:
 ```bash
 # Check AIKO account
 solana account YOUR_AIKO_ADDRESS --url https://rpc.testnet.carv.io/rpc
@@ -239,6 +273,6 @@ Program ID: `5v3BSZA3xPYAnir7RFpRX4evtSm9tqfQPgY9vrLxaP4r`
 
 [⭐ Star this repo](https://github.com/ricardolight/aiko) | [🐦 Follow updates](https://twitter.com/Irhazz)
 
-**AIKO - Where AI meets blockchain. Forever.** 🌸
+**AIKO - Where AI meets blockchain, beautifully.** 🌸
 
 </div>

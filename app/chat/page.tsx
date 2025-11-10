@@ -1,3 +1,4 @@
+// app/chat/page.tsx - UPDATED WITH DAILY SYNC
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -11,30 +12,22 @@ import { useWalletModal, WalletModalButton } from '@solana/wallet-adapter-react-
 import WelcomeOnboarding from '@/components/WelcomeOnboarding';
 import MemorySettings from '@/components/MemorySettings';
 import AchievementSystem from '@/app/chat/AchievementSystem';
+import SyncDashboard from '@/components/SyncDashboard';
+import { sessionService } from '@/lib/session-service';
 
 export default function ChatPage() {
   const wallet = useWallet();
-  // Ambil properti baru dari hook library
   const { publicKey, connected: isConnected } = wallet;
   const { setVisible } = useWalletModal();
-
-  // 1. Buat ulang 'walletAddress' dari 'publicKey'
   const walletAddress = useMemo(() => publicKey?.toBase58(), [publicKey]);
-
-  // 2. Buat ulang 'provider' yang dibutuhkan oleh halaman ini
-  // (Pengecekan if (!provider) akan pakai ini)
   const provider = useMemo(() => wallet.wallet?.adapter, [wallet.wallet]);
-
-  // 3. Buat ulang 'connectWallet' untuk membuka modal
-  const connectWallet = useCallback(() => {
-    setVisible(true);
-  }, [setVisible]);
+  const connectWallet = useCallback(() => setVisible(true), [setVisible]);
   
   const [messages, addMessage] = useChatHistory(walletAddress || '');
-
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [aikoData, setAikoData] = useState<AikoAccount | null>(null);
+  const [sessionData, setSessionData] = useState<any>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [notification, setNotification] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -43,7 +36,8 @@ export default function ChatPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
-
+  const [showSyncDashboard, setShowSyncDashboard] = useState(false);
+  const [isDailySync, setIsDailySync] = useState(false);
   const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false); 
   const [errorType, setErrorType] = useState<'balance' | 'generic' | null>(null);
  
@@ -52,21 +46,44 @@ export default function ChatPage() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isProcessingRef = useRef(false);
   
-  // ✅ STABLE: No re-render scroll
   const scrollToBottom = useCallback(() => {
     if (!messagesEndRef.current) return;
     messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, []);
 
-  // ✅ ONLY scroll on new message, NEVER on state updates
   useEffect(() => {
     if (messages.length > 0) {
       const timer = setTimeout(scrollToBottom, 100);
       return () => clearTimeout(timer);
     }
-  }, [messages.length, scrollToBottom]); // Only messages.length, not entire messages array
+  }, [messages.length, scrollToBottom]);
 
-  // Load AIKO data
+  // Initialize session when wallet connects
+  useEffect(() => {
+    if (walletAddress && aikoData) {
+      const session = sessionService.initSession(walletAddress, {
+        xp: Number(aikoData.xp.toString()),
+        level: aikoData.level,
+        streak: Number(aikoData.streak.toString()),
+        totalInteractions: Number(aikoData.totalInteractions.toString())
+      });
+      setSessionData(session);
+      console.log('✅ Session initialized');
+    }
+  }, [walletAddress, aikoData]);
+
+  // Check daily sync requirement on mount
+  useEffect(() => {
+    if (walletAddress && sessionData) {
+      const needsDaily = sessionService.needsDailySync(walletAddress);
+      if (needsDaily) {
+        console.log('🔥 Daily sync required!');
+        setIsDailySync(true);
+        setShowSyncDashboard(true);
+      }
+    }
+  }, [walletAddress, sessionData]);
+
   const loadAikoData = useCallback(async () => {
     if (!publicKey || !provider) return;
 
@@ -293,109 +310,137 @@ export default function ChatPage() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // ✅ PERFECT: Zero visual change, smooth experience
-    const handleSend = async () => {
-    if (!input.trim() || loading || isProcessingRef.current || !aikoData || !publicKey || !provider) return;
+  const handleSend = async () => {
+    if (!input.trim() || loading || isProcessingRef.current || !aikoData || !publicKey || !provider || !walletAddress) return;
+
+    // 🔥 CHECK: Daily sync required?
+    if (sessionService.needsDailySync(walletAddress)) {
+      setIsDailySync(true);
+      setShowSyncDashboard(true);
+      showNotification('🔥 Sync required to continue streak!');
+      return;
+    }
 
     const userMessage = input.trim();
-    setInput(''); // Clear input immediately
+    setInput('');
     
-    // Show user message instantly
     addUserMessage(userMessage);
     setLoading(true);
     isProcessingRef.current = true;
 
     try {
-        // ✅ STEP 1: Sign wallet transaction FIRST (but don't update state yet!)
-        console.log("🔐 Requesting wallet signature...");
-        await solanaService.interact(wallet);
-        console.log("✅ Signed! Getting AI response...");
-        
-        // Calculate new values but DON'T update state
-        const newXP = Number(aikoData.xp.toString()) + 10;
-        const newLevel = Math.floor(newXP / 100) + 1;
-        const newInteractions = Number(aikoData.totalInteractions.toString()) + 1;
-        
-        // ✅ STEP 2: Get AI response with updated values
-        const response = await deepseekService.chat(
+      // Get AI response (NO blockchain!)
+      const response = await deepseekService.chat(
         userMessage, 
         {
-            owner: aikoData.owner.toBase58(),
-            level: newLevel,
-            xp: newXP,
-            total_interactions: newInteractions,
-            last_interaction: Math.floor(Date.now() / 1000),
-            streak: Number(aikoData.streak.toString()),
-            evolution_stage: getEvolutionStage(newLevel),
-            userName: aikoData.userName || '',
-            userCountry: aikoData.userCountry || '',
-            memoryFlags: aikoData.memoryFlags || 0
+          owner: aikoData.owner.toBase58(),
+          level: sessionData?.localLevel || aikoData.level,
+          xp: sessionData?.totalLocalXP || Number(aikoData.xp.toString()),
+          total_interactions: sessionData?.totalLocalInteractions || Number(aikoData.totalInteractions.toString()),
+          last_interaction: Math.floor(Date.now() / 1000),
+          streak: sessionData?.localStreak || Number(aikoData.streak.toString()),
+          evolution_stage: getEvolutionStage(sessionData?.localLevel || aikoData.level),
+          userName: aikoData.userName || '',
+          userCountry: aikoData.userCountry || '',
+          memoryFlags: aikoData.memoryFlags || 0
         },
         messages.slice(-10).map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'assistant',
-            content: msg.text
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
         }))
-        );
+      );
 
-        // ✅ STEP 3: Show AIKO response
-        addAikoMessage(response.text, response.emotion as any, response.emoji);
+      addAikoMessage(response.text, response.emotion as any, response.emoji);
 
-        // ✅ STEP 4: Update state silently in background (after message shown)
+      // Save to localStorage
+      const result = sessionService.addInteraction(
+        walletAddress,
+        userMessage,
+        response.text
+      );
+
+      // Update session state
+      setSessionData((prev: any) => ({
+        ...prev,
+        totalLocalXP: result.newXP,
+        localLevel: result.newLevel,
+        localStreak: result.newStreak,
+        totalLocalInteractions: result.totalInteractions,
+      }));
+
+      // Notifications
+      if (result.streakInfo.isNewDay) {
+        if (result.streakInfo.streakChange === 'increased') {
+          showNotification(`🔥 Streak: ${result.newStreak} days! +10 XP`);
+        } else if (result.streakInfo.streakChange === 'reset') {
+          showNotification(`💔 Streak reset! Start fresh today! +10 XP`);
+        }
+      } else {
+        showNotification(`✅ +10 XP • ${result.newXP} total`);
+      }
+
+      // Check if needs sync
+      if (result.needsSync) {
         setTimeout(() => {
-        setAikoData(prev => {
-            if (!prev) return prev;
-            
-            const updatedXP = prev.xp.add(new BN(10));
-            const updatedLevel = Math.floor(Number(updatedXP.toString()) / 100) + 1;
-            const previousLevel = prev.level;
-            
-            // Show level up notification
-            if (updatedLevel > previousLevel) {
-            setTimeout(() => showNotification(`🎉 Level Up! Now Level ${updatedLevel}!`), 300);
-            } else {
-            showNotification('✅ +10 XP');
-            }
-            
-            return {
-            ...prev,
-            totalInteractions: prev.totalInteractions.add(new BN(1)),
-            xp: updatedXP,
-            level: updatedLevel,
-            lastInteraction: new BN(Math.floor(Date.now() / 1000))
-            };
-        });
-        }, 100);
+          setIsDailySync(false);
+          setShowSyncDashboard(true);
+        }, 2000);
+      }
 
     } catch (error: any) {
-        console.error('❌ Failed:', error);
-        
-        // Better error handling
-        if (error.message?.includes('User rejected')) {
+      console.error('Failed:', error);
+      
+      if (error.message?.includes('User rejected')) {
         addAikoMessage(
-            "Oh, you cancelled! 😅 That's okay, try again when you're ready!",
-            'curious',
-            '🤔'
+          "Oh, you cancelled! 😅 That's okay, try again when you're ready!",
+          'curious',
+          '🤔'
         );
-        } else if (error.message?.includes('Insufficient balance')) {
+      } else if (error.message?.includes('Insufficient balance')) {
         addAikoMessage(
-            "Oops! Not enough SOL for gas fees. 😢 Please bridge some SOL!",
-            'sad',
-            '💸'
+          "Oops! Not enough SOL for gas fees. 😢 Please bridge some SOL!",
+          'sad',
+          '💸'
         );
         showNotification('💰 Bridge SOL needed');
-        } else {
+      } else {
         addAikoMessage(
-            "Something went wrong... 😅 Let's try again!",
-            'sad',
-            '💔'
+          "Something went wrong... 😅 Let's try again!",
+          'sad',
+          '💔'
         );
-        }
+      }
     } finally {
-        setLoading(false);
-        isProcessingRef.current = false;
-        setTimeout(() => inputRef.current?.focus(), 50);
+      setLoading(false);
+      isProcessingRef.current = false;
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
-    };
+  };
+
+  const handleSyncComplete = async () => {
+    if (!walletAddress) return;
+    
+    // Reload from blockchain
+    const updated = await solanaService.getAIKO(wallet);
+    if (updated) {
+      setAikoData(updated);
+      
+      // Update session from blockchain
+      sessionService.updateFromBlockchain(walletAddress, {
+        xp: Number(updated.xp.toString()),
+        level: updated.level,
+        streak: Number(updated.streak.toString()),
+        totalInteractions: Number(updated.totalInteractions.toString())
+      });
+      
+      // Reload session
+      const session = sessionService.getSession(walletAddress);
+      setSessionData(session);
+      
+      showNotification('✅ Synced to blockchain!');
+      setIsDailySync(false);
+    }
+  };
 
   const getEvolutionStage = (level: number): 'egg' | 'hatchling' | 'companion' | 'soulmate' => {
     if (level >= 20) return 'soulmate';
@@ -425,31 +470,30 @@ export default function ChatPage() {
   };
 
   // Loading states
-    if (!isConnected) {
+  if (!isConnected) {
     return (
-        <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
+      <div className="relative flex h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
         <div className="text-center p-8 glass-card rounded-2xl shadow-xl z-10">
-            <h2 className="text-3xl font-bold text-white mb-4">Connect Your Wallet</h2>
-            <p className="text-purple-300 mb-8">
+          <h2 className="text-3xl font-bold text-white mb-4">Connect Your Wallet</h2>
+          <p className="text-purple-300 mb-8">
             You need to connect your wallet to chat with AIKO.
-            </p>
-            
-            {/* FIX: Button di-center dengan flex */}
-            <div className="flex justify-center">
+          </p>
+          
+          <div className="flex justify-center">
             <WalletModalButton className="group relative px-8 py-4 rounded-2xl transition-all">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl group-hover:shadow-2xl group-hover:shadow-purple-500/50 transition-all" />
-                <div className="relative flex items-center gap-2 text-white font-semibold">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl group-hover:shadow-2xl group-hover:shadow-purple-500/50 transition-all" />
+              <div className="relative flex items-center gap-2 text-white font-semibold">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
                 <span>Connect Wallet</span>
-                </div>
+              </div>
             </WalletModalButton>
-            </div>
+          </div>
         </div>
-        </div>
+      </div>
     );
-    }
+  }
 
   if (aikoLoading && !errorType) {
     return (
@@ -563,11 +607,16 @@ export default function ChatPage() {
   }
 
   // Main render
-  const currentStage = getEvolutionStage(aikoData.level);
-  const currentXP = Number(aikoData.xp.toString());
-  const currentLevel = aikoData.level;
+  const currentStage = getEvolutionStage(sessionData?.localLevel || aikoData.level);
+  const currentXP = sessionData?.totalLocalXP || Number(aikoData.xp.toString());
+  const currentLevel = sessionData?.localLevel || aikoData.level;
+  const currentStreak = sessionData?.localStreak || Number(aikoData.streak.toString());
+  const currentInteractions = sessionData?.totalLocalInteractions || Number(aikoData.totalInteractions.toString());
   const knowsName = (aikoData.memoryFlags & 1) !== 0;
   const knowsCountry = (aikoData.memoryFlags & 2) !== 0;
+  
+  const syncStatus = walletAddress ? sessionService.getSyncStatus(walletAddress) : null;
+  const pendingCount = syncStatus?.pendingCount || 0;
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-gradient-to-br from-[#0f0519] via-[#1a0b2e] to-[#0f0519]">
@@ -659,15 +708,28 @@ export default function ChatPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="glass-card rounded-xl p-4 text-center">
                   <div className="text-3xl mb-2">🔥</div>
-                  <div className="text-2xl font-bold text-white">{aikoData.streak.toString()}</div>
+                  <div className="text-2xl font-bold text-white">{currentStreak}</div>
                   <div className="text-xs text-gray-400">Day Streak</div>
                 </div>
                 <div className="glass-card rounded-xl p-4 text-center">
                   <div className="text-3xl mb-2">💬</div>
-                  <div className="text-2xl font-bold text-white">{aikoData.totalInteractions.toString()}</div>
+                  <div className="text-2xl font-bold text-white">{currentInteractions}</div>
                   <div className="text-xs text-gray-400">Total Chats</div>
                 </div>
               </div>
+
+              {/* Pending Sync Badge */}
+              {pendingCount > 0 && (
+                <div className="glass-card rounded-xl p-4 border border-yellow-500/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-yellow-300 text-sm font-semibold mb-1">Pending Sync</div>
+                      <div className="text-gray-400 text-xs">{pendingCount} messages waiting</div>
+                    </div>
+                    <div className="text-3xl">📦</div>
+                  </div>
+                </div>
+              )}
 
               {/* Info Cards */}
               <div className="space-y-3">
@@ -766,49 +828,64 @@ export default function ChatPage() {
             <div className="flex items-center gap-6">
               <div className="hidden md:flex items-center gap-2 text-sm">
                 <span className="text-gray-400">Streak:</span>
-                <span className="text-orange-400 font-bold">🔥 {aikoData.streak.toString()}</span>
+                <span className="text-orange-400 font-bold">🔥 {currentStreak}</span>
               </div>
 
-            <button
-            onClick={() => setShowAchievements(true)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors group relative"
-            title="Achievements"
-            >
-            <span className="text-2xl group-hover:scale-110 transition-transform inline-block">🏆</span>
-            {/* Badge counter */}
-            {(() => {
-                const unlockedCount = [
-                Number(aikoData.totalInteractions.toString()) >= 1,
-                Number(aikoData.totalInteractions.toString()) >= 10,
-                Number(aikoData.streak.toString()) >= 7,
-                Number(aikoData.streak.toString()) >= 30,
-                aikoData.level >= 5,
-                aikoData.level >= 10,
-                aikoData.level >= 20,
-                knowsName && knowsCountry,
-                Number(aikoData.totalInteractions.toString()) >= 100,
-                Number(aikoData.xp.toString()) >= 1000,
-                true,
-                aikoData.level >= 50,
-                ].filter(Boolean).length;
-                
-                return unlockedCount > 0 && (
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-gray-900">
-                    {unlockedCount}
-                </div>
-                );
-            })()}
-            </button>
+              <button
+                onClick={() => setShowAchievements(true)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors group relative"
+                title="Achievements"
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform inline-block">🏆</span>
+                {(() => {
+                  const unlockedCount = [
+                    currentInteractions >= 1,
+                    currentInteractions >= 10,
+                    currentStreak >= 7,
+                    currentStreak >= 30,
+                    currentLevel >= 5,
+                    currentLevel >= 10,
+                    currentLevel >= 20,
+                    knowsName && knowsCountry,
+                    currentInteractions >= 100,
+                    currentXP >= 1000,
+                    true,
+                    currentLevel >= 50,
+                  ].filter(Boolean).length;
+                  
+                  return unlockedCount > 0 && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-gray-900">
+                      {unlockedCount}
+                    </div>
+                  );
+                })()}
+              </button>
 
-            <button
-            onClick={() => setShowSettings(true)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
-            title="Memory Settings"
-            >
+              <button
+                onClick={() => setShowSettings(true)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors group"
+                title="Memory Settings"
+              >
                 <svg className="w-6 h-6 text-gray-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsDailySync(false);
+                  setShowSyncDashboard(true);
+                }}
+                className="relative p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="Blockchain Sync"
+              >
+                <span className="text-2xl">🔄</span>
+                {pendingCount > 0 && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center text-[10px] font-bold text-black">
+                    {pendingCount}
+                  </div>
+                )}
               </button>
               
               <button
@@ -946,7 +1023,7 @@ export default function ChatPage() {
 
             <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
               <span>Press Enter to send</span>
-              <span>{aikoData.totalInteractions.toString()} messages • +10 XP per chat</span>
+              <span>{currentInteractions} messages • Streak: {currentStreak} days 🔥</span>
             </div>
           </div>
         </div>
@@ -969,15 +1046,26 @@ export default function ChatPage() {
         />
       )}  
 
-      
       {showAchievements && aikoData && (
         <AchievementSystem
-            aikoData={aikoData}
-            knowsName={knowsName}
-            knowsCountry={knowsCountry}
-            onClose={() => setShowAchievements(false)}
+          aikoData={{
+            totalInteractions: { toString: () => currentInteractions.toString() },
+            streak: { toString: () => currentStreak.toString() },
+            level: currentLevel,
+            xp: { toString: () => currentXP.toString() }
+          }}
+          knowsName={knowsName}
+          knowsCountry={knowsCountry}
+          onClose={() => setShowAchievements(false)}
         />
-        )}
+      )}
+
+      <SyncDashboard
+        isOpen={showSyncDashboard}
+        onClose={() => !isDailySync && setShowSyncDashboard(false)}
+        onSyncComplete={handleSyncComplete}
+        isDailySync={isDailySync}
+      />
     </div>
   );
 }
